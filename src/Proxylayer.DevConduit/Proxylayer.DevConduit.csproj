@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- Stay a console-subsystem exe: the console and service runs need a console, and the tray
+         detaches from it at startup. Without this the SDK infers WinExe from UseWindowsForms. -->
+    <DisableWinExeOutputInference>true</DisableWinExeOutputInference>
+    <!-- Emitted into ApplicationConfiguration.Initialize(), which only the tray calls, before it
+         creates a window: the tray menu needs true pixel coordinates on mixed-scale monitors.
+         The console, server and service runs never call it and keep the default. -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Proxylayer.DevConduit</RootNamespace>
+    <AssemblyName>Dev.Conduit</AssemblyName>
+    <!-- The one version source: the exe's file and product version, and through the exe the
+         MSI's ProductVersion. build.ps1 -Version overrides it. -->
+    <Version>1.0.0</Version>
+    <!-- The informational version is the release version alone, without a +commit suffix: the
+         updater and the About page read it, and it must match the release tag. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UserSecretsId>dev-conduit-1f0c8e2a-4d54-4f4a-9a11-0f2f1d6d9a10</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.88.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.88.0" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="4.14.2" />
+    <PackageReference Include="Microsoft.Identity.Web.UI" Version="4.14.2" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.0" />
+    <PackageReference Include="Topshelf" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinForms adds these as implicit usings; the web code names its own Timer, Route and
+         Control types, so the tray code imports them explicitly instead. -->
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+</Project>

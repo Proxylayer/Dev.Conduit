@@ -1,0 +1,168 @@
+Dev.Conduit {{Version}} - installing with the MSI
+================================================
+
+Dev.Conduit-{{Version}}.msi installs Dev.Conduit, published by Proxylayer, per machine into
+C:\Program Files\Proxylayer\Dev.Conduit. It carries its own .NET runtime, so the machine
+needs no .NET runtimes installed. Installing needs an administrator (a UAC prompt).
+
+Dev.Conduit was previously named POC.DevProxy. It does not upgrade a POC.DevProxy install
+and migrates none of its settings or data: while POC.DevProxy is installed the MSI stops
+with "POC.DevProxy is installed. Uninstall it first (Settings > Apps), then install
+Dev.Conduit and import your .conduit file." A .proxyconfig file exported by POC.DevProxy
+still imports.
+
+The package has two roles, chosen at install time:
+
+  Workstation (default)  The tray app, started at sign-in for every user. It hosts local
+                         mode, the relay to a Dev.Conduit server. Start menu: "Dev.Conduit".
+                         Optionally imports a server's .conduit file during the install.
+  Server                 The Dev.Conduit Windows service (LocalSystem, automatic delayed
+                         start, restarted a minute after a failure). Its data lives in
+                         %ProgramData%\Proxylayer\Dev.Conduit. Start menu: "Dev.Conduit",
+                         the tray, which manages the service.
+
+
+Interactive install
+-------------------
+Double-click the MSI and choose the role on the Role page. For Workstation you can give the
+.conduit file your Dev.Conduit server's administrator sent you (or a .proxyconfig file from
+POC.DevProxy): type its full path or use Browse. The install then adds that server (hosts
+entry, certificate trust, routes). Leave it blank for a blank install and import the file
+later from the tray. After a Workstation install the last page offers to start the tray.
+
+
+Silent install (elevated prompt)
+--------------------------------
+  Server:       msiexec /i Dev.Conduit-{{Version}}.msi ROLE=Server /qn
+  Workstation:  msiexec /i Dev.Conduit-{{Version}}.msi ROLE=Workstation /qn
+  Workstation, importing a server:
+                msiexec /i Dev.Conduit-{{Version}}.msi ROLE=Workstation
+                        CONDUITCONFIG="C:\path\devconduit.example.internal.conduit" /qn
+                (one line)
+
+Add /l*v install.log to keep a log.
+
+CONDUITCONFIG must be the full path of a .conduit (or legacy .proxyconfig) file on a local
+disk: the import runs as the local system account, which cannot read network shares or
+mapped drives. A missing file, another extension, a network path or ROLE=Server stops the
+install before anything is changed. A file the import refuses (an expired one, for example)
+fails the install, which is rolled back; the log's ImportConduitConfig lines say why.
+The property was named PROXYCONFIG before the rename; this package reads CONDUITCONFIG only.
+
+ENVIRONMENT (silent installs only) sets the service's DOTNET_ENVIRONMENT and defaults to
+Production. Nothing in the package needs another value.
+
+
+Upgrade
+-------
+Run the newer MSI, interactively or with /qn. With no ROLE, ENVIRONMENT or INSTALLFOLDER on the
+command line it keeps the ones chosen before (stored under HKLM\SOFTWARE\Proxylayer\Dev.Conduit).
+CONDUITCONFIG is not kept: an upgrade imports only when it is given again. The service is
+stopped while its files are replaced and started again afterwards. An older MSI refuses to
+install over a newer one.
+
+
+Automatic updates
+-----------------
+Dev.Conduit updates itself from the published releases of
+https://github.com/Proxylayer/Dev.Conduit. Every download is checked before it is installed:
+its SHA-256 must match the release's .sha256 file, it must be a newer Dev.Conduit package, and,
+once releases are signed, it must be signed by the same publisher as the installed version.
+
+  Server       The service checks every hour and installs a new release silently at 03:00
+               local time. The Application event log (source Dev.Conduit) says what it did.
+  Workstation  The tray checks every hour, downloads in the background and starts the
+               install, which asks for administrator rights once (a UAC prompt). The tray
+               closes while it installs and starts again afterwards. Declining the prompt
+               leaves the update in the tray menu: "Install update vX.Y.Z (needs admin)...".
+
+To install updates by hand instead, turn "Install updates automatically" off in the tray menu or
+on Settings > About. To turn updates off completely, set DevConduit:Update:FeedUrl to "" in
+%ProgramData%\Proxylayer\Dev.Conduit\settings.json. The install logs are kept in
+%ProgramData%\Proxylayer\Dev.Conduit\updates (install-X.Y.Z.log, update-helper.log). If an update
+fails, the installed version keeps running and the update is tried again a day later; or run the
+new MSI by hand as above.
+
+
+Uninstall
+---------
+Settings > Apps > Installed apps > Dev.Conduit > Uninstall, or:
+
+  msiexec /x Dev.Conduit-{{Version}}.msi /qn
+
+This removes the program files, the Start menu shortcut, the sign-in entry, the service and
+its event log source. It keeps the settings and data below.
+
+A server adds its own HTTPS certificates to the machine's Trusted Root store
+(LocalMachine\Root) so a browser on the server trusts it. The MSI cannot remove them: they
+stay until they expire, a year at most. To remove them, run this before uninstalling the
+Server role (it asks for administrator rights):
+
+  "C:\Program Files\Proxylayer\Dev.Conduit\Dev.Conduit.exe" certs untrust
+
+It removes only the certificates the server recorded adding, nothing else in the store.
+
+While the MSI is installed, in either role, it alone installs the service: the tray offers no
+Install service and "Dev.Conduit.exe install" refuses; to run a server, install the MSI with
+ROLE=Server. Uninstall is refused only when the MSI is installed in its Server role, which owns
+the service it installed: the tray's Uninstall service menu item is disabled and
+"Dev.Conduit.exe uninstall" refuses. With the Workstation role the MSI installs no service, so
+one present was installed some other way and can be uninstalled from the tray menu or with
+"Dev.Conduit.exe uninstall". Start, stop and restart still work from the tray. A server
+installed earlier from a zip folder with "Dev.Conduit.exe install" must be removed with
+"Dev.Conduit.exe uninstall" from that folder before installing the MSI with ROLE=Server.
+
+
+Settings and data (kept on upgrade and uninstall)
+-------------------------------------------------
+  %ProgramData%\Proxylayer\Dev.Conduit\settings.json   machine settings, read by every
+                                                       launch
+  %ProgramData%\Proxylayer\Dev.Conduit\                a server's data: history, header
+                                                       sets, the Data Protection keys in
+                                                       keys\ and the server's certificates
+                                                       in certs\
+  %ProgramData%\Proxylayer\Dev.Conduit\client\         a workstation's imported server
+                                                       trust and client certificates
+                                                       (administrators write, users read)
+  %LOCALAPPDATA%\Proxylayer\Dev.Conduit\settings.json  a user's settings
+  %LOCALAPPDATA%\Proxylayer\Dev.Conduit\client\        what a user's local proxy learned
+                                                       since: new server certificates and
+                                                       its renewed client certificate, for
+                                                       that user alone
+
+The appsettings*.json files in the install folder are replaced by every upgrade; put machine
+or user changes in the settings files above, through the tray's setup window.
+
+
+After installing: still manual
+------------------------------
+Server:
+  1. Open the tray ("Dev.Conduit" in the Start menu) > Settings and enter the values on the
+     Server page: the client address (the IP address workstations map the host name to), the
+     Entra tenant and client ids, the managed identity client id and the allowed users or
+     groups. Save. Enter the routes on the Routes page and save. Then Restart service. A
+     fresh install carries none of these.
+     The host name defaults to this computer's DNS name, shown greyed on the Server page;
+     type another (for example devconduit.example.internal) only if clients should use
+     one. Workstations need not resolve the computer's name: the exported file carries the
+     client address and the import maps the name to it.
+     To start from another server's settings instead, use Copy settings from .conduit... on
+     the Server page (or "Dev.Conduit.exe import <file> --seed-server"). It copies the Entra
+     tenant and client ids and the routes only; this server keeps its own host name, port and
+     client address. The managed identity client id is not in the file: set it on the Server
+     page.
+  2. The service creates and rotates its own HTTPS certificate under
+     %ProgramData%\Proxylayer\Dev.Conduit\certs and adds it to this machine's Trusted Root
+     store; nothing needs importing. Until the settings are in place it may fail to start or
+     answer 503; it says why in the Application event log, source Dev.Conduit.
+  3. Export a file for the workstations: Settings > Server > Export client configuration...
+     (or the same item in the tray menu). It writes <hostname>.conduit, by default in
+     Documents. The file contains a client certificate: share it only with people who should
+     use this server.
+
+Workstation (unless the install imported the file already):
+  1. Open the tray > Settings > Servers > Import .conduit... and choose the server's file
+     (a .proxyconfig file from POC.DevProxy works too). It asks for administrator rights,
+     then adds the hosts entry, trusts the server's certificate, and adds the server and its
+     routes.
+  2. Open the tray and Start local proxy. The first start may ask you to sign in.

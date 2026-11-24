@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, without the leading 'v' (e.g. 1.2.3)
+        required: true
+
+permissions:
+  contents: write       # for creating the draft GitHub Release
+  id-token: write       # for attest-build-provenance
+  attestations: write   # for attest-build-provenance
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          $v = if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $env:GITHUB_REF -replace 'refs/tags/v', ''
+          } else {
+            $env:INPUT_VERSION
+          }
+          if (-not $v) { Write-Error 'Could not resolve version'; exit 1 }
+          # An MSI product version, and the asset names the updater looks for: major.minor.patch.
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { Write-Error "Version '$v' is not major.minor.patch"; exit 1 }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "Resolved version: $v" | Write-Host
+
+      - name: Build
+        shell: pwsh
+        run: .\build.ps1 -NoPackage
+
+      - name: Test
+        shell: pwsh
+        run: .\test.ps1 -NoBuild -Trx
+
+      # Signing is optional: trusted-signing when the Azure Trusted Signing secrets are set,
+      # else signtool when a PFX is, else unsigned. Secrets cannot be tested in an `if:`, so the
+      # step reads them from its own environment, where nothing else sees them.
+      - name: Build release (MSI, checksum, installer zip)
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
+          SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
+        run: |
+          $sign = 'none'
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          if ($env:AZURE_TRUSTED_SIGNING_ENDPOINT -and $env:AZURE_TRUSTED_SIGNING_ACCOUNT -and $env:AZURE_TRUSTED_SIGNING_PROFILE) {
+            $sign = 'trusted-signing'
+          } elseif ($env:SIGN_PFX_BASE64) {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGN_PFX_BASE64))
+            $env:SIGN_PFX_PATH = $pfx
+            $sign = 'signtool'
+          }
+          Write-Host "Signing: $sign"
+          try {
+            .\build.ps1 -Configuration Release -Version $env:VERSION -Sign $sign
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            if (Test-Path $pfx) { Remove-Item $pfx -Force }
+          }
+
+      - name: Check release assets
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          foreach ($name in "Dev.Conduit-$env:VERSION.msi", "Dev.Conduit-$env:VERSION.msi.sha256", "Dev.Conduit-$env:VERSION-installer.zip") {
+            if (-not (Test-Path (Join-Path artifacts $name))) { Write-Error "artifacts/$name is missing"; exit 1 }
+          }
+          $expected = (Get-Content "artifacts/Dev.Conduit-$env:VERSION.msi.sha256" -Raw).Split(' ')[0].Trim()
+          $actual = (Get-FileHash "artifacts/Dev.Conduit-$env:VERSION.msi" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -ne $actual) { Write-Error 'The checksum file does not match the MSI'; exit 1 }
+
+      - name: Install CycloneDX
+        run: dotnet tool install --global CycloneDX
+
+      - name: Generate SBOM
+        run: >
+          dotnet CycloneDX src/Proxylayer.DevConduit/Proxylayer.DevConduit.csproj
+          --output artifacts
+          --filename sbom.json
+          --json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            artifacts/Dev.Conduit-${{ steps.ver.outputs.version }}.msi
+            artifacts/installer/publish/Dev.Conduit.exe
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore
+
+      # A draft is invisible to the updater (and to anonymous callers of the GitHub API) until
+      # it is reviewed and published.
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
+          draft: true
+          generate_release_notes: true
+          files: |
+            artifacts/Dev.Conduit-${{ steps.ver.outputs.version }}.msi
+            artifacts/Dev.Conduit-${{ steps.ver.outputs.version }}.msi.sha256
+            artifacts/Dev.Conduit-${{ steps.ver.outputs.version }}-installer.zip
+            artifacts/sbom.json

@@ -1,0 +1,44 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        shell: pwsh
+        run: .\build.ps1 -NoPackage
+
+      # Tests that depend on this machine's state skip themselves on a runner: no Dev.Conduit
+      # MSI is installed there, and a runner is elevated, which the helper tests check for.
+      - name: Test
+        shell: pwsh
+        run: .\test.ps1 -NoBuild -Trx
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore

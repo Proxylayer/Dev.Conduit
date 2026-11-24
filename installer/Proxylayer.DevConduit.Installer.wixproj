@@ -1,0 +1,43 @@
+<!--
+  WiX v5, pinned to exact 5.0.x versions on purpose: the WiX v6 binaries carry the Open Source
+  Maintenance Fee terms for commercial use, so do not move this project or its extensions to
+  v6 without that decision being made. Built by build.ps1 with dotnet build; no global WiX
+  install is needed. Not part of Proxylayer.DevConduit.sln: it packages a self-contained publish that
+  build.ps1 stages first, so a plain solution build has nothing to package.
+-->
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+  <PropertyGroup>
+    <OutputName>Dev.Conduit</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <!-- The self-contained win-x64 publish to package. build.ps1 stages it here. -->
+    <PayloadDir Condition="'$(PayloadDir)' == ''">$(MSBuildThisFileDirectory)..\artifacts\installer\publish\</PayloadDir>
+    <PayloadDir>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::GetFullPath('$(PayloadDir)'))))</PayloadDir>
+    <DefineConstants>PayloadDir=$(PayloadDir)</DefineConstants>
+    <!-- ICE30: the exe is authored in two mutually exclusive role components (the service tables
+         need the service binary to be the key file of the component installing the service, and
+         only the Server role installs it); ICE30 warns that this is fine only if the conditions
+         are mutually exclusive, which they are. ICE61: same-version upgrades are allowed on
+         purpose, so a rebuilt package replaces an installed one instead of installing beside it. -->
+    <SuppressIces>ICE30;ICE61</SuppressIces>
+    <!-- WIX1149: the delayed automatic start uses the MsiServiceConfig table. The Windows Installer
+         documentation's warning is about its failure actions table, which this package does not
+         use (recovery goes through util:ServiceConfig instead). -->
+    <SuppressSpecificWarnings>1149</SuppressSpecificWarnings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="CustomActions\Proxylayer.DevConduit.Installer.CustomActions.csproj" />
+  </ItemGroup>
+
+  <Target Name="CheckPayload" BeforeTargets="CoreCompile">
+    <Error Condition="!Exists('$(PayloadDir)Dev.Conduit.exe')"
+           Text="No published app at $(PayloadDir). Run build.ps1, which publishes it self-contained there first." />
+  </Target>
+
+</Project>

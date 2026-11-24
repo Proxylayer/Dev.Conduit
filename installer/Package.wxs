@@ -1,0 +1,247 @@
+<!--
+  Dev.Conduit, per-machine x64. One package for both roles, chosen at install time by ROLE:
+
+    Workstation  the tray app, started at sign-in for every user (HKLM Run), hosting local mode;
+                 with CONDUITCONFIG, the server that .conduit file describes is imported.
+    Server       the Dev.Conduit Windows service, installed through the MSI service tables,
+                 running with DOTNET_ENVIRONMENT=[ENVIRONMENT] (Production unless given).
+
+  ROLE, ENVIRONMENT and INSTALLFOLDER are kept under HKLM\SOFTWARE\Proxylayer\Dev.Conduit and read back
+  on upgrade when the command line does not give them; CONDUITCONFIG is not kept, so an upgrade imports only
+  when it is given again. Override settings, data and keys live outside the install folder
+  (%ProgramData%\Proxylayer\Dev.Conduit and %LOCALAPPDATA%\Proxylayer\Dev.Conduit) and are never removed by this package.
+
+  Dev.Conduit was previously named POC.DevProxy. This package has its own UpgradeCode and does
+  not upgrade a POC.DevProxy install or migrate its settings: it only detects one and stops.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="Dev.Conduit"
+           Manufacturer="Proxylayer"
+           Version="!(bind.FileVersion.WorkstationExeFile)"
+           UpgradeCode="7F06EDB1-709D-4AA7-8416-2A77F1AB825C"
+           Scope="perMachine">
+
+    <SummaryInformation Description="Dev.Conduit" />
+
+    <!-- Same-version upgrades are allowed so a rebuilt package replaces the installed one
+         instead of installing beside it. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of [ProductName] is already installed. Uninstall it first to install this version." />
+
+    <!-- POC.DevProxy, this product's previous name, under its own UpgradeCode: detected only, never
+         upgraded or removed. The launch condition below stops the install while it is present. -->
+    <Upgrade Id="C76F2433-85EB-4A36-8EE6-C8684EE02F80">
+      <UpgradeVersion OnlyDetect="yes" Minimum="0.0.0" IncludeMinimum="yes" Property="LEGACYPRODUCTFOUND" />
+    </Upgrade>
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- Role and environment. Neither has a default in the Property table: a default there could
+         not be told apart from a value given on the command line, and a value given there must
+         win over the one saved by the previous install. The defaults are applied below, after
+         the saved values are read. -->
+    <Property Id="ROLE" Secure="yes" />
+    <Property Id="ENVIRONMENT" Secure="yes" />
+
+    <!-- Workstation only, optional: the full path of a .conduit file (or a legacy .proxyconfig) to import during the install. -->
+    <Property Id="CONDUITCONFIG" Secure="yes" />
+
+    <Property Id="SAVED_ROLE">
+      <RegistrySearch Id="SavedRoleSearch" Root="HKLM" Key="SOFTWARE\Proxylayer\Dev.Conduit" Name="Role" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="SAVED_ENVIRONMENT">
+      <RegistrySearch Id="SavedEnvironmentSearch" Root="HKLM" Key="SOFTWARE\Proxylayer\Dev.Conduit" Name="Environment" Type="raw" Bitness="always64" />
+    </Property>
+    <!-- The folder the previous install used, so an upgrade (including one the updater starts)
+         installs to it again instead of the default. A folder given on the command line wins. -->
+    <Property Id="SAVED_INSTALLFOLDER">
+      <RegistrySearch Id="SavedInstallFolderSearch" Root="HKLM" Key="SOFTWARE\Proxylayer\Dev.Conduit" Name="InstallFolder" Type="raw" Bitness="always64" />
+    </Property>
+
+    <SetProperty Id="ROLE" Action="SetRoleFromSaved" Value="[SAVED_ROLE]" After="AppSearch" Sequence="both" Condition="NOT ROLE AND SAVED_ROLE" />
+    <SetProperty Id="ROLE" Action="SetRoleDefault" Value="Workstation" After="SetRoleFromSaved" Sequence="both" Condition="NOT ROLE" />
+    <SetProperty Id="ROLE" Action="NormalizeRoleWorkstation" Value="Workstation" After="SetRoleDefault" Sequence="both" Condition="ROLE ~= &quot;Workstation&quot;" />
+    <SetProperty Id="ROLE" Action="NormalizeRoleServer" Value="Server" After="NormalizeRoleWorkstation" Sequence="both" Condition="ROLE ~= &quot;Server&quot;" />
+    <SetProperty Id="ENVIRONMENT" Action="SetEnvironmentFromSaved" Value="[SAVED_ENVIRONMENT]" After="NormalizeRoleServer" Sequence="both" Condition="NOT ENVIRONMENT AND SAVED_ENVIRONMENT" />
+    <SetProperty Id="ENVIRONMENT" Action="SetEnvironmentDefault" Value="Production" After="SetEnvironmentFromSaved" Sequence="both" Condition="NOT ENVIRONMENT" />
+    <SetProperty Id="INSTALLFOLDER" Action="SetInstallFolderFromSaved" Value="[SAVED_INSTALLFOLDER]" After="SetEnvironmentDefault" Sequence="both" Condition="NOT INSTALLFOLDER AND SAVED_INSTALLFOLDER" />
+
+    <!-- ENVIRONMENT must match the rule the app's elevated helper applies, which MSI condition
+         syntax cannot express; a custom action checks it and sets ENVIRONMENT_ACCEPTED. Another
+         checks CONDUITCONFIG (a Workstation install, a full local path, a .conduit or legacy
+         .proxyconfig name, an existing file) and sets CONDUITCONFIG_ACCEPTED, or
+         CONDUITCONFIG_PROBLEM with the reason. Both run before the launch conditions, as the user
+         who started the install. -->
+    <Binary Id="DevConduitInstallerActions" SourceFile="$(var.Proxylayer.DevConduit.Installer.CustomActions.TargetDir)Proxylayer.DevConduit.Installer.CustomActions.CA.dll" />
+    <CustomAction Id="ValidateEnvironment" BinaryRef="DevConduitInstallerActions" DllEntry="ValidateEnvironment" Execute="immediate" Return="check" />
+    <CustomAction Id="ValidateConduitConfig" BinaryRef="DevConduitInstallerActions" DllEntry="ValidateConduitConfig" Execute="immediate" Return="check" />
+    <InstallUISequence>
+      <Custom Action="ValidateEnvironment" After="SetEnvironmentDefault" />
+      <Custom Action="ValidateConduitConfig" After="ValidateEnvironment" />
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action="ValidateEnvironment" After="SetEnvironmentDefault" />
+      <Custom Action="ValidateConduitConfig" After="ValidateEnvironment" />
+    </InstallExecuteSequence>
+
+    <Launch Condition="Installed OR NOT LEGACYPRODUCTFOUND"
+            Message="POC.DevProxy is installed. Uninstall it first (Settings &gt; Apps), then install Dev.Conduit and import your .conduit file." />
+    <Launch Condition="Installed OR ROLE = &quot;Workstation&quot; OR ROLE = &quot;Server&quot;"
+            Message="ROLE must be Workstation or Server." />
+    <Launch Condition="Installed OR ROLE &lt;&gt; &quot;Server&quot; OR ENVIRONMENT_ACCEPTED = &quot;1&quot;"
+            Message="ENVIRONMENT must be 1 to 64 letters, digits, dots, dashes or underscores, for example Production." />
+    <Launch Condition="Installed OR NOT CONDUITCONFIG OR CONDUITCONFIG_ACCEPTED = &quot;1&quot;"
+            Message="[CONDUITCONFIG_PROBLEM]" />
+
+    <!-- The import: the installed exe's own import command (in this process, no UAC), run quietly as LocalSystem
+         once the files are in place, on a Workstation install or upgrade given CONDUITCONFIG. Its
+         output goes to the install log; a file it refuses fails the install, which rolls back.
+         The command line reaches the deferred action as its CustomActionData. -->
+    <SetProperty Id="ImportConduitConfig" Action="SetImportConduitConfigCommand" Before="ImportConduitConfig" Sequence="execute"
+                 Value="&quot;[INSTALLFOLDER]Dev.Conduit.exe&quot; import &quot;[CONDUITCONFIG]&quot; --machine"
+                 Condition="ROLE = &quot;Workstation&quot; AND CONDUITCONFIG AND NOT REMOVE" />
+    <CustomAction Id="ImportConduitConfig" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="ImportConduitConfig" After="InstallFiles" Condition="ROLE = &quot;Workstation&quot; AND CONDUITCONFIG AND NOT REMOVE" />
+    </InstallExecuteSequence>
+
+    <!-- Add/Remove Programs: the publisher is the Manufacturer above; no help link, no icon yet,
+         and no Change button (ARPNOMODIFY, set with the UI). -->
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="VENDORFOLDER" Name="Proxylayer">
+        <Directory Id="INSTALLFOLDER" Name="Dev.Conduit" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="DATAVENDORFOLDER" Name="Proxylayer">
+        <Directory Id="DATAFOLDER" Name="Dev.Conduit" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Dev.Conduit" AllowAbsent="no">
+      <ComponentGroupRef Id="Payload" />
+      <ComponentRef Id="RoleRegistration" />
+      <ComponentRef Id="WorkstationExe" />
+      <ComponentRef Id="ServerExe" />
+      <ComponentRef Id="WorkstationShortcut" />
+      <ComponentRef Id="ServerShortcut" />
+      <ComponentRef Id="ServerDataFolder" />
+    </Feature>
+
+    <UIRef Id="DevConduitUI" />
+  </Package>
+
+  <Fragment>
+    <!-- Everything published except the exe, which each role authors itself below. -->
+    <ComponentGroup Id="Payload" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PayloadDir)**">
+        <Exclude Files="$(var.PayloadDir)Dev.Conduit.exe" />
+        <Exclude Files="$(var.PayloadDir)**\*.pdb" />
+        <Exclude Files="$(var.PayloadDir)appsettings.Development.json" />
+      </Files>
+    </ComponentGroup>
+
+    <!-- The chosen role, environment and install folder, read back on upgrade; the updater reads
+         them too, to pass them on to the upgrade it starts and to recognise an installed build.
+         The whole key goes on uninstall. -->
+    <Component Id="RoleRegistration" Directory="INSTALLFOLDER">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Proxylayer\Dev.Conduit" ForceDeleteOnUninstall="yes">
+        <RegistryValue Name="Role" Type="string" Value="[ROLE]" KeyPath="yes" />
+        <RegistryValue Name="Environment" Type="string" Value="[ENVIRONMENT]" />
+        <RegistryValue Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" />
+      </RegistryKey>
+    </Component>
+
+    <!-- Workstation: the tray, started at sign-in for every user. The exe is authored twice, once
+         per role, because the MSI service tables take the service binary from the key file of
+         the component that installs the service; the two components are mutually exclusive.
+         Their short names differ only so the two rows do not collide; they are never used. -->
+    <Component Id="WorkstationExe" Directory="INSTALLFOLDER" Guid="244CA412-5C51-44F1-B569-D6D24857DA65"
+               Condition="ROLE = &quot;Workstation&quot;">
+      <File Id="WorkstationExeFile" Source="$(var.PayloadDir)Dev.Conduit.exe" ShortName="DEVCONDW.EXE" KeyPath="yes" />
+      <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run" Name="Dev.Conduit"
+                     Type="string" Value="&quot;[#WorkstationExeFile]&quot; tray" />
+    </Component>
+
+    <!-- Shortcut components need a per-user key path to pass ICE43 and ICE57, even in a
+         per-machine package; the value is a marker for the installing user only. -->
+    <Component Id="WorkstationShortcut" Directory="ProgramMenuFolder" Condition="ROLE = &quot;Workstation&quot;">
+      <Shortcut Id="WorkstationShortcut" Name="Dev.Conduit"
+                Description="The Dev.Conduit tray app, hosting local mode."
+                Target="[INSTALLFOLDER]Dev.Conduit.exe" Arguments="tray" WorkingDirectory="INSTALLFOLDER" />
+      <RegistryValue Root="HKCU" Key="Software\Proxylayer\Dev.Conduit\Installer" Name="WorkstationShortcut" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- Server: the Windows service, its recovery, its environment and its event log source. -->
+    <Component Id="ServerExe" Directory="INSTALLFOLDER" Guid="65B6E1CC-F2C1-475F-82F6-70CEC8621EC3"
+               Condition="ROLE = &quot;Server&quot;">
+      <File Id="ServerExeFile" Source="$(var.PayloadDir)Dev.Conduit.exe" ShortName="DEVCONDS.EXE" KeyPath="yes" />
+
+      <!-- No arguments: started by the service control manager, the exe finds its parent is
+           services.exe and runs the Topshelf service host under the configured name. -->
+      <ServiceInstall Id="DevConduitService"
+                      Name="Dev.Conduit"
+                      DisplayName="Dev.Conduit"
+                      Description="Developer HTTP proxy and request console, server mode. Signs callers in with Microsoft Entra ID and forwards their requests."
+                      Type="ownProcess"
+                      Start="auto"
+                      ErrorControl="normal"
+                      Account="LocalSystem"
+                      Vital="yes">
+        <!-- Delayed automatic start through the MsiServiceConfig table (WIX1149 is suppressed in
+             the project; the documented problem is with the failure actions table). -->
+        <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall="yes" />
+        <!-- Recovery through the WiX custom action rather than MsiServiceConfigFailureActions,
+             which the Windows Installer documentation says does not work as expected: restart
+             after a minute on every failure, failure count reset daily. -->
+        <util:ServiceConfig FirstFailureActionType="restart"
+                            SecondFailureActionType="restart"
+                            ThirdFailureActionType="restart"
+                            RestartServiceDelayInSeconds="60"
+                            ResetPeriodInDays="1" />
+      </ServiceInstall>
+
+      <!-- Stopped before its files are touched (install, upgrade, uninstall) and removed on
+           uninstall, waiting for each. -->
+      <ServiceControl Id="DevConduitServiceStop" Name="Dev.Conduit" Stop="both" Remove="uninstall" Wait="yes" />
+      <!-- Started on install without waiting: a fresh server has no certificate or settings yet,
+           and a service that cannot start must not roll the install back. It logs why to the
+           Application event log. -->
+      <ServiceControl Id="DevConduitServiceStart" Name="Dev.Conduit" Start="install" Wait="no" />
+
+      <!-- The service's own environment, which DevConduitServiceHost and ServiceEnvironment read. -->
+      <RegistryValue Root="HKLM" Key="SYSTEM\CurrentControlSet\Services\Dev.Conduit" Name="Environment"
+                     Type="multiString" Action="write">
+        <MultiStringValue Value="DOTNET_ENVIRONMENT=[ENVIRONMENT]" />
+      </RegistryValue>
+
+      <!-- The source ServiceEventLog writes under, with the message file .NET itself falls back to. -->
+      <util:EventSource Log="Application" Name="Dev.Conduit"
+                        EventMessageFile="[INSTALLFOLDER]System.Diagnostics.EventLog.Messages.dll"
+                        SupportsErrors="yes" SupportsWarnings="yes" SupportsInformationals="yes" />
+    </Component>
+
+    <!-- The tray manages the service (start, stop, settings, event log) on a server. -->
+    <Component Id="ServerShortcut" Directory="ProgramMenuFolder" Condition="ROLE = &quot;Server&quot;">
+      <Shortcut Id="ServerShortcut" Name="Dev.Conduit"
+                Description="The Dev.Conduit tray app, for managing the service."
+                Target="[INSTALLFOLDER]Dev.Conduit.exe" Arguments="tray" WorkingDirectory="INSTALLFOLDER" />
+      <RegistryValue Root="HKCU" Key="Software\Proxylayer\Dev.Conduit\Installer" Name="ServerShortcut" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- The service's data root: settings, history and the Data Protection keys. Administrators
+         and SYSTEM full control, Users read and execute, not inherited from ProgramData. Never
+         removed, so data and keys survive uninstall and upgrade. -->
+    <Component Id="ServerDataFolder" Directory="DATAFOLDER" Guid="C38B7BC0-3051-4CC0-B69A-91EC43FE9183"
+               Condition="ROLE = &quot;Server&quot;" Permanent="yes">
+      <CreateFolder>
+        <PermissionEx Sddl="O:BAG:SYD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
+      </CreateFolder>
+    </Component>
+  </Fragment>
+</Wix>

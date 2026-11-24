@@ -1,0 +1,2936 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dev.Conduit — Technical Architecture</title>
+<style>
+/* ------------------------------------------------------------------
+   technical-document.css — house documentation style, inlined so this
+   file stands alone. Additions specific to this document are grouped
+   at the end under "Document-specific additions".
+   ------------------------------------------------------------------ */
+:root {
+  --bg: #0b1118;
+  --panel: #121b24;
+  --panel-2: #15212b;
+  --line: #2d3b49;
+  --line-strong: #394b5d;
+  --text: #eef3f7;
+  --muted: #909dac;
+  --muted-2: #758494;
+  --heading: #f2eee6;
+  --cyan: #5bc9ff;
+  --cyan-dim: #87acd2;
+  --green: #77c991;
+  --green-panel: #10241a;
+  --blue-panel: #142733;
+  --amber: #d7b066;
+  --red: #d98787;
+  --code-bg: #17212b;
+  --code-line: #2e3a47;
+
+  --left-width: 355px;
+  --right-width: 225px;
+  --content-max: 980px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.64;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+a:hover { color: #c6d4df; }
+
+.site-shell {
+  width: min(1680px, 100%);
+  margin: 0 auto;
+  padding: 0 27px 80px;
+  display: grid;
+  grid-template-columns: var(--left-width) minmax(0, 1fr) var(--right-width);
+  gap: 42px;
+  align-items: start;
+}
+
+main {
+  width: 100%;
+  max-width: var(--content-max);
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.left-rail .rail-inner {
+  position: relative;
+  top: auto;
+  max-height: none;
+  overflow: visible;
+  padding-top: 83px;
+}
+
+.right-rail .rail-inner {
+  position: sticky;
+  top: 28px;
+  max-height: calc(100vh - 56px);
+  overflow: auto;
+  padding-top: 84px;
+}
+
+.nav-title {
+  margin: 0 0 12px;
+  color: #8a98a6;
+  font: 10px/1.2 Consolas, "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: .20em;
+}
+
+.page-nav,
+.heading-nav {
+  border-left: 2px solid #263543;
+}
+
+.page-nav a,
+.heading-nav a {
+  display: block;
+  padding: 5px 8px 5px 12px;
+  color: #8d9aaa;
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.page-nav a.active,
+.heading-nav a.active {
+  color: #dbe7ef;
+  border-left: 2px solid var(--cyan);
+  margin-left: -2px;
+}
+
+.page-nav a,
+.nav-group > summary,
+.nav-group-title,
+.page-nav-section-title {
+  white-space: nowrap;
+}
+
+.nav-group > summary {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 39px minmax(max-content, 1fr) 13px;
+  gap: 4px;
+  padding: 6px 7px 6px 12px;
+  margin-left: -2px;
+  border-left: 2px solid transparent;
+  color: #9aa9b6;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.nav-group > summary::-webkit-details-marker { display: none; }
+.nav-group > summary::after {
+  content: "\203A";
+  color: #56697a;
+  font: 15px/1 Consolas, "Courier New", monospace;
+}
+.nav-group[open] > summary::after { transform: rotate(90deg); }
+
+.page-nav-section-title {
+  margin: 13px 0 7px 12px;
+  color: #66798a;
+  font: 9px/1.2 Consolas, "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+}
+
+.page-nav-divider {
+  height: 1px;
+  margin: 14px 12px 13px;
+  background: var(--line);
+}
+
+.hero {
+  margin: 0 0 23px;
+  padding: 0;
+}
+
+.eyebrow { display: none; }
+
+h1 {
+  margin: 0 0 23px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--heading);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 35px;
+  line-height: 1.18;
+  font-weight: 400;
+  letter-spacing: -.015em;
+}
+
+h2 {
+  margin: 35px 0 10px;
+  color: #fff;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+h3 {
+  margin: 22px 0 7px;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+h4 {
+  margin: 18px 0 6px;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+p { margin: 0 0 13px; }
+
+.lede {
+  margin: 0 0 8px;
+  color: #f0f4f7;
+  font-size: 16px;
+  line-height: 1.68;
+  font-weight: 700;
+}
+
+code, .token {
+  padding: 1px 4px;
+  background: var(--code-bg);
+  border: 1px solid var(--code-line);
+  border-radius: 1px;
+  color: #e8f2fb;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: .90em;
+  font-weight: 600;
+}
+
+pre {
+  margin: 9px 0 20px;
+  padding: 13px 15px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: #0c141c;
+  color: #e7eef5;
+  font: 12px/1.55 Consolas, "Courier New", monospace;
+}
+
+pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.callout {
+  margin: 18px 0 21px;
+  padding: 12px 15px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--cyan);
+  background: #111a23;
+}
+
+.callout.good {
+  border-left-color: var(--green);
+  background: #102018;
+}
+
+.callout.warn {
+  border-left-color: var(--amber);
+  background: #211d13;
+}
+
+.diagram {
+  margin: 28px 0 10px;
+  padding: 40px 82px 26px;
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.diagram-label,
+.kicker,
+.category-tag {
+  color: var(--cyan);
+  font: 11px/1.2 Consolas, "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: .16em;
+}
+
+.node {
+  min-height: 55px;
+  padding: 11px 16px;
+  border: 1px solid #34485b;
+  background: #121b24;
+}
+
+.node.green {
+  border-color: var(--green);
+  background: var(--green-panel);
+}
+
+.node.blue {
+  border-color: var(--cyan);
+  background: var(--blue-panel);
+}
+
+.node.amber {
+  border-color: var(--amber);
+  background: #241f13;
+}
+
+.node-title {
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.node-meta {
+  margin-top: 2px;
+  color: #8eafd0;
+  font: 11px/1.4 Consolas, "Courier New", monospace;
+}
+
+.arrow {
+  color: #d7e0e7;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+table {
+  width: 100%;
+  margin: 17px 0 26px;
+  border-collapse: collapse;
+  color: #dfe7ed;
+  font-size: 14px;
+}
+
+th, td {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #141e27;
+  color: #f1f5f7;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* ------------------------------------------------------------------
+   Document-specific additions. Same idiom, same tokens, no new colour
+   values and no new visual effects.
+   ------------------------------------------------------------------ */
+
+/* Anchored sections must not sit under the top of the viewport when
+   the smooth scroll lands on them. */
+section[id] { scroll-margin-top: 24px; }
+
+/* This document quotes long URLs and header names inline. Without this
+   an unbreakable identifier pushes the whole page wider than the
+   viewport on a phone, which the style guide forbids: only tables,
+   diagrams and code blocks may scroll horizontally. */
+code { overflow-wrap: anywhere; }
+
+/* The starter markup nests child pages in this wrapper; the base CSS
+   styles the links but never indents the group. */
+.nav-group-children { margin-left: 26px; }
+
+/* Right-rail entries for h3 headings, one level in from their h2. */
+.heading-nav a.sub {
+  padding-left: 26px;
+  font-size: 13px;
+  color: #7e8b9a;
+}
+
+/* Quiet monospace document metadata under the page title. Section 15
+   of the style guide: numbering and identifiers stay visually quiet. */
+.doc-meta {
+  margin: 0 0 20px;
+  color: var(--muted-2);
+  font: 11px/1.7 Consolas, "Courier New", monospace;
+  letter-spacing: .04em;
+}
+.doc-meta span + span::before {
+  content: "\00b7";
+  margin: 0 9px;
+  color: #46576a;
+}
+
+/* Diagram layout. The base CSS supplies nodes and arrows but no
+   container to arrange them in. */
+.diagram-columns {
+  display: grid;
+  gap: 34px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: start;
+}
+.diagram > .diagram-label { display: block; margin-bottom: 18px; }
+.diagram-col > .diagram-label { margin-bottom: 11px; }
+.diagram-flow { display: grid; gap: 9px; }
+.diagram-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+}
+.diagram-row > .arrow { align-self: center; }
+.arrow-note {
+  margin: -2px 0 0;
+  color: var(--muted-2);
+  font: 11px/1.45 Consolas, "Courier New", monospace;
+  text-align: center;
+}
+.diagram-note {
+  margin: 16px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.diagram-note code { font-size: .86em; }
+
+/* Wide reference tables scroll rather than forcing the page to. */
+.table-wrap { overflow-x: auto; }
+.table-wrap > table { min-width: 620px; }
+
+/* Column of parallel facts inside a table cell. */
+td ul, td ol { margin: 0; padding-left: 17px; }
+td li { margin: 0 0 3px; }
+
+/* Mobile document navigation. The base stylesheet reveals .mobile-nav
+   below 861px but never defines it, so it is defined here. */
+.mobile-nav {
+  display: none;
+  margin: 0 0 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.mobile-nav > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 11px 14px;
+  color: #9aa9b6;
+  font: 10px/1.2 Consolas, "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: .20em;
+}
+.mobile-nav > summary::-webkit-details-marker { display: none; }
+.mobile-nav > summary::after {
+  content: "\203A";
+  float: right;
+  color: #56697a;
+  font-size: 14px;
+}
+.mobile-nav[open] > summary { border-bottom: 1px solid var(--line); }
+.mobile-nav nav { padding: 8px 0 12px; }
+.mobile-nav a {
+  display: block;
+  padding: 6px 14px;
+  color: #8d9aaa;
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.mobile-nav .nav-number {
+  margin-right: 10px;
+  color: #66798a;
+  font: 11px/1 Consolas, "Courier New", monospace;
+}
+
+@media (max-width: 1240px) and (min-width: 861px) {
+  .site-shell {
+    grid-template-columns: 315px minmax(0, 1fr);
+    gap: 32px;
+  }
+  .right-rail { display: none; }
+}
+
+@media (max-width: 860px) {
+  .site-shell { display: block; padding: 0 20px 60px; }
+  .left-rail, .right-rail { display: none; }
+  .mobile-nav { display: block; }
+  h1 { font-size: 31px; }
+  .diagram { padding: 24px 18px; }
+  .diagram-columns { gap: 26px; }
+  .diagram-row { grid-template-columns: minmax(0, 1fr); }
+  .diagram-row > .arrow { transform: rotate(90deg); }
+}
+</style>
+</head>
+<body>
+<div class="site-shell">
+
+  <details class="mobile-nav">
+    <summary>Contents</summary>
+    <nav>
+      <a href="#purpose"><span class="nav-number">00</span>What it is</a>
+      <a href="#topology"><span class="nav-number">01.1</span>Topology</a>
+      <a href="#console"><span class="nav-number">01.2</span>Console request lifecycle</a>
+      <a href="#route"><span class="nav-number">02.1</span>The forwarding contract</a>
+      <a href="#local-mode"><span class="nav-number">02.2</span>Local mode</a>
+      <a href="#authentication"><span class="nav-number">02.3</span>Authentication</a>
+      <a href="#certificates"><span class="nav-number">02.4</span>Certificates and .conduit</a>
+      <a href="#storage"><span class="nav-number">03.1</span>Storage model</a>
+      <a href="#security"><span class="nav-number">03.2</span>Security posture</a>
+      <a href="#configuration"><span class="nav-number">03.3</span>Configuration reference</a>
+      <a href="#operations"><span class="nav-number">03.4</span>Operational notes</a>
+    </nav>
+  </details>
+
+  <aside class="left-rail">
+    <div class="rail-inner">
+      <div class="nav-title">Pages</div>
+      <nav class="page-nav" id="page-nav">
+        <a href="#purpose">00&nbsp;&nbsp;What it is</a>
+
+        <div class="page-nav-divider"></div>
+        <div class="page-nav-section-title">Handbook</div>
+
+        <details class="nav-group" open>
+          <summary>
+            <span class="page-number">01</span>
+            <span class="nav-group-title">Architecture</span>
+          </summary>
+          <div class="nav-group-children">
+            <a href="#topology">01.1&nbsp;&nbsp;Topology</a>
+            <a href="#console">01.2&nbsp;&nbsp;Console lifecycle</a>
+          </div>
+        </details>
+
+        <details class="nav-group" open>
+          <summary>
+            <span class="page-number">02</span>
+            <span class="nav-group-title">Forwarding</span>
+          </summary>
+          <div class="nav-group-children">
+            <a href="#route">02.1&nbsp;&nbsp;The /route contract</a>
+            <a href="#local-mode">02.2&nbsp;&nbsp;Local mode</a>
+            <a href="#authentication">02.3&nbsp;&nbsp;Authentication</a>
+            <a href="#certificates">02.4&nbsp;&nbsp;Certificates</a>
+          </div>
+        </details>
+
+        <details class="nav-group" open>
+          <summary>
+            <span class="page-number">03</span>
+            <span class="nav-group-title">Platform &amp; operations</span>
+          </summary>
+          <div class="nav-group-children">
+            <a href="#storage">03.1&nbsp;&nbsp;Storage model</a>
+            <a href="#security">03.2&nbsp;&nbsp;Security posture</a>
+            <a href="#configuration">03.3&nbsp;&nbsp;Configuration</a>
+            <a href="#operations">03.4&nbsp;&nbsp;Operational notes</a>
+          </div>
+        </details>
+
+        <div class="page-nav-divider"></div>
+        <div class="page-nav-section-title">Companion documents</div>
+        <a href="../README.md">README.md</a>
+        <a href="ROUTING.md">ROUTING.md</a>
+        <a href="LOCAL-MODE.md">LOCAL-MODE.md</a>
+      </nav>
+    </div>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <h1>Dev.Conduit — Technical Architecture</h1>
+      <p class="lede">
+        Dev.Conduit runs on a machine that can reach a restricted endpoint and lets a developer
+        drive that machine's network access from a workstation that cannot, either through a
+        browser console or by relaying the application's existing traffic unchanged.
+      </p>
+      <p class="doc-meta">
+        <span>Scope: one ASP.NET Core project, two modes</span><span>Target framework net10.0-windows</span><span>Companion: README.md, docs/ROUTING.md, docs/LOCAL-MODE.md</span>
+      </p>
+    </header>
+
+    <section id="purpose">
+      <h2>00 &nbsp; What it is and what problem it solves</h2>
+
+      <p>
+        A developer needs to call an internal service — say the SOAP endpoint at
+        <code>http://10.0.0.5:8080/services/orders/service.svr</code>. Their laptop has no
+        route to <code>10.0.0.5</code>: it sits behind a VPN boundary, an allowlist, or a
+        network segment the workstation is not on. Some other machine does have that route.
+        Dev.Conduit is what you run on that machine.
+      </p>
+
+      <p>
+        Once it is running there, the developer has two ways to reach the endpoint, and they
+        solve two different problems:
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 26%">Surface</th><th style="width: 37%">What it is for</th><th>How the request is composed</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>The console</strong><br><code>/</code> and <code>/api</code></td>
+            <td>Exploration. Poking at an endpoint by hand, reading the exact response, replaying it.</td>
+            <td>In the browser, as a JSON description of a request. The server builds and executes the real call.</td>
+          </tr>
+          <tr>
+            <td><strong>Transparent forwarding</strong><br><code>/route</code></td>
+            <td>Running the application. Code that already calls an address keeps calling it.</td>
+            <td>By the caller, as an ordinary HTTP request. Dev.Conduit relays verb, path, query, headers and body without altering them.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="callout">
+        <strong>The mental model.</strong> Closest previous-technology analogy: a desktop REST
+        client such as Postman, except that the outbound call originates on the host running the
+        service rather than on the workstation holding the browser. The analogy is approximate —
+        there is no collection format, no environment substitution and no scripting — and it
+        covers only the console half. The <code>/route</code> half has no Postman equivalent; it
+        is an authenticated HTTP relay.
+      </div>
+
+      <p>
+        The tool is one ASP.NET Core project, <code>src/Proxylayer.DevConduit</code>, targeting
+        <code>net10.0-windows</code>, with a browser console built from plain HTML, CSS and JavaScript
+        served out of <code>wwwroot</code>, and a Windows Forms tray app in the same exe. There is no Node.js, no npm and no client build step.
+        The same executable runs in two modes — <em>server</em> on the privileged machine,
+        <em>local</em> on the workstation — chosen by <code>DevConduit:Mode</code> or the
+        <code>--mode</code> argument. Keeping both roles in one binary is deliberate: the wire
+        contract between the two ends cannot drift, because both ends are compiled from the same
+        source.
+      </p>
+    </section>
+
+    <section id="topology">
+      <h2>01.1 &nbsp; Topology</h2>
+
+      <p>
+        Server mode is sufficient on its own. A caller who can present a bearer token can point
+        at <code>http://&lt;host&gt;:8091/route/…</code> and it works. Local mode exists to remove
+        that requirement from the caller: the application talks plain HTTP to loopback with no
+        token, no Dev.Conduit headers and no code change, and the workstation-side process holds the
+        Entra credential instead.
+      </p>
+
+      <div class="diagram">
+        <div class="diagram-columns">
+
+          <div class="diagram-col">
+            <div class="diagram-label">Server mode &middot; one hop</div>
+            <div class="diagram-flow">
+              <div class="node">
+                <div class="node-title">Developer workstation</div>
+                <div class="node-meta">browser, or any HTTP client</div>
+              </div>
+              <div class="arrow">&darr;</div>
+              <div class="arrow-note">console session cookie<br>or Bearer token</div>
+              <div class="node blue">
+                <div class="node-title">Dev.Conduit &mdash; SERVER</div>
+                <div class="node-meta">:8091 &middot; validates Entra tokens<br>console + /route + capture</div>
+              </div>
+              <div class="arrow">&darr;</div>
+              <div class="arrow-note">no Entra token<br>upstream credential only</div>
+              <div class="node green">
+                <div class="node-title">Upstream service</div>
+                <div class="node-meta">10.0.0.5:8080</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="diagram-col">
+            <div class="diagram-label">Local mode &middot; two hops</div>
+            <div class="diagram-flow">
+              <div class="node">
+                <div class="node-title">Developer's application</div>
+                <div class="node-meta">unchanged &middot; no token, no headers</div>
+              </div>
+              <div class="arrow">&darr;</div>
+              <div class="arrow-note">loopback, unauthenticated<br>:8092 /route or :8093 HTTP_PROXY</div>
+              <div class="node amber">
+                <div class="node-title">Dev.Conduit &mdash; LOCAL</div>
+                <div class="node-meta">127.0.0.1 only &middot; acquires token (MSAL)<br>no inbound sign-in</div>
+              </div>
+              <div class="arrow">&darr;</div>
+              <div class="arrow-note">Authorization: Bearer &lt;Entra&gt;<br>X-DevConduit-Target: origin</div>
+              <div class="node blue">
+                <div class="node-title">Dev.Conduit &mdash; SERVER</div>
+                <div class="node-meta">:8091 &middot; validates the token<br>holds the authoritative capture</div>
+              </div>
+              <div class="arrow">&darr;</div>
+              <div class="node green">
+                <div class="node-title">Upstream service</div>
+                <div class="node-meta">10.0.0.5:8080</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <p class="diagram-note">
+          The Entra token is <strong>acquired</strong> on the amber node and <strong>validated</strong>
+          on the blue one. It exists on exactly one leg of the chain — workstation to server — and
+          never travels further: the inbound <code>Authorization</code> header is dropped before the
+          upstream call is built. Everything green is a machine Dev.Conduit knows nothing about.
+        </p>
+      </div>
+
+      <h3>Mode comparison</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 24%">Concern</th><th style="width: 38%">Server mode</th><th>Local mode</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Runs on</td><td>The privileged machine</td><td>The developer workstation</td></tr>
+          <tr><td>Binds</td><td>Whatever <code>Kestrel:Endpoints</code> or <code>urls</code> names; <code>http://localhost:8091</code> when neither is set</td><td>Loopback only: <code>:8092</code> (Kestrel) and <code>:8093</code> (raw TCP)</td></tr>
+          <tr><td>Entra ID</td><td><strong>Validates</strong> bearer tokens and console sessions</td><td><strong>Acquires</strong> tokens with MSAL, for the developer at the keyboard</td></tr>
+          <tr><td>Inbound authentication</td><td>OIDC cookie session, or bearer token on <code>/route</code></td><td>None, by design. A fixed pseudo-principal <code>local</code> is synthesised for every request</td></tr>
+          <tr><td>Next hop</td><td>The upstream the request names</td><td>A remote Dev.Conduit instance from <code>DevConduit:Remotes</code>, chosen per request, which then calls the upstream</td></tr>
+          <tr><td>Console UI</td><td>Served, behind sign-in</td><td>Served, no sign-in</td></tr>
+          <tr><td>Routed capture</td><td>On</td><td>Off unless <code>DevConduit:Local:CaptureEnabled</code></td></tr>
+          <tr><td>Refuses to start when</td><td>&mdash;</td><td>The bind address is not loopback, no remote is configured or an endpoint is unusable, a route or the default names an unknown remote, a route has no remote to go to, or the two ports collide</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Composition and the request pipeline</h3>
+
+      <p>
+        <code>Program.cs</code> only chooses a launch path, through
+        <code>ServiceLaunch.Resolve</code>: <code>tray</code> starts the tray app and
+        <code>service-admin</code> its elevated helper; the Windows service lifecycle verbs and a
+        start by the service control manager go to the service host (see
+        <a href="#operations">03.4</a>); everything else runs in the console. The console, the
+        service and the tray's in-process local mode all build the application through
+        <code>DevConduitApplication.TryBuild</code>, which is where the composition below lives,
+        including the checks that refuse to start and their exit code. Its first step layers the
+        machine and user settings files into configuration (see
+        <a href="#configuration">03.3</a>); a file that cannot be used is a fatal message naming
+        it. The tray passes a log sink, which replaces every other log provider, since a tray has
+        no console. Mode is resolved next, before anything else is registered.
+        <code>DevConduitModeSelection</code> reads <code>--mode</code> first, then
+        <code>DevConduit:Mode</code>, defaulting to <code>Server</code>, and writes the resolved
+        value back into configuration as a last-wins in-memory source so that the bound
+        <code>DevConduitOptions</code> cannot disagree with the mode the process actually chose.
+        <code>ServerModeStartup.Register</code> or <code>LocalModeStartup.Register</code> then
+        contributes the mode-specific registrations; everything shared — storage, the
+        forwarder, the capture recorder, the HTTP client set — is registered once for both.
+      </p>
+
+      <p>
+        Middleware order in <code>DevConduitApplication</code> carries two decisions worth stating
+        explicitly:
+      </p>
+
+      <ul>
+        <li>
+          <code>/health</code> is a terminal branch (<code>MapDevConduitHealth</code>) mounted
+          <em>first</em>, ahead of the unconfigured-tenant notice and of
+          <code>UseAuthentication()</code>. With no Entra ids the OpenID Connect options cannot be
+          built at all, so a probe that reached authentication would fail with a 500. It answers
+          <code>{"status":"ok","configured":…}</code> in both modes.
+        </li>
+        <li>
+          <code>MapDevConduitRoute()</code> is mounted <em>before</em> <code>UseAuthorization()</code>.
+          The global fallback policy is cookie-only, and applying it to <code>/route</code> would
+          shut out bearer callers, so the <code>/route</code> branch runs its own
+          <code>RouteAccess</code> policy instead.
+        </li>
+        <li>
+          <code>UseStaticFiles()</code> is mounted <em>after</em> <code>UseAuthorization()</code>,
+          so the fallback policy guards the console assets as well as the API. Only
+          <code>/health</code> is anonymous.
+        </li>
+      </ul>
+
+      <p>
+        <code>/route</code> is a terminal middleware branch (<code>app.Map</code>) rather than a
+        mapped endpoint. A proxy has to accept any verb, including the custom ones legacy
+        services define — <code>PROPFIND</code>, <code>SUBMIT</code>, whatever the upstream was
+        written against — and a route pattern cannot express an open verb set.
+      </p>
+    </section>
+
+    <section id="console">
+      <h2>01.2 &nbsp; The console request lifecycle</h2>
+
+      <p>
+        The browser never makes the outbound call. It composes a description of one, posts that
+        description to <code>POST /api/proxy/execute</code>, and the server does the rest. That
+        inversion is the entire point of the console: the browser is on a machine with no route
+        to the upstream, and the server is on a machine that has one.
+      </p>
+
+      <div class="diagram">
+        <div class="diagram-label">Console execution &middot; POST /api/proxy/execute</div>
+        <div class="diagram-flow">
+          <div class="node">
+            <div class="node-title">Browser composes</div>
+            <div class="node-meta">method, URL, headers, body, options<br>serialised as ProxyRequest JSON</div>
+          </div>
+          <div class="arrow">&darr;</div>
+          <div class="arrow-note">DevConduit.Auth cookie + X-DevConduit-Client: 1</div>
+          <div class="node blue">
+            <div class="node-title">ProxyExecutor</div>
+            <div class="node-meta">picks 1 of 4 named HttpClients<br>(follow redirects &times; TLS validation)</div>
+          </div>
+          <div class="arrow">&darr;</div>
+          <div class="node green">
+            <div class="node-title">Upstream service</div>
+            <div class="node-meta">called from THIS machine's network</div>
+          </div>
+          <div class="arrow">&darr;</div>
+          <div class="arrow-note">whole response buffered: status, headers, body, timing</div>
+          <div class="node blue">
+            <div class="node-title">Persist and answer</div>
+            <div class="node-meta">history entry written with secrets redacted<br>{ response, error, errorKind, durationMs, historyId }</div>
+          </div>
+        </div>
+        <p class="diagram-note">
+          Unlike <code>/route</code>, the console path buffers: <code>ProxyExecutor</code> sends
+          with <code>HttpCompletionOption.ResponseContentRead</code> and reads the body to a byte
+          array, because the UI needs the complete response to render it. Body size in history is
+          capped by <code>DevConduit:MaxStoredBodyBytes</code>.
+        </p>
+      </div>
+
+      <h3>Failure semantics</h3>
+
+      <p>
+        A transport failure — DNS, TLS, refused connection, timeout, a malformed URL — still
+        answers HTTP <code>200</code> from <code>/api/proxy/execute</code>, with
+        <code>response: null</code> and <code>error</code> / <code>errorKind</code> populated, and
+        is still recorded in history. The status code of that API call describes whether Dev.Conduit
+        did its job, not whether the upstream did. This is the opposite of
+        <code>/route</code>, which answers with proxy semantics.
+      </p>
+
+      <p>
+        A destination in <code>DevConduit:BlockedEgressNetworks</code> takes the same path, with
+        <code>errorKind: "Blocked"</code> and an <code>error</code> naming the host, the resolved
+        address and the setting. The console shows it as <code>BLOCKED</code>. See
+        <a href="#security">03.2</a>.
+      </p>
+
+      <div class="callout warn">
+        <strong>Reading the status.</strong> A request that failed at the transport layer shows
+        <code>200</code> in a browser network tab. The error kind is in the response body and is
+        surfaced in the response pane as an error callout, not as an HTTP status. Looking only at
+        the network tab will mislead you.
+      </div>
+
+      <h3>The API surface</h3>
+
+      <p>
+        Every <code>/api</code> endpoint sits in one group that requires authorization and
+        applies <code>ClientHeaderFilter</code>, which rejects any call not carrying
+        <code>X-DevConduit-Client: 1</code> with a <code>400</code>. Combined with a
+        <code>SameSite=Lax</code> session cookie this is the CSRF control: a cross-site form post
+        or image request cannot set a custom header, so it cannot drive the API with a signed-in
+        developer's session.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Group</th><th style="width: 34%">Endpoints</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Identity</td>
+            <td><code>GET /api/me</code></td>
+            <td><code>{ userId, displayName, userName }</code> from the validated principal</td>
+          </tr>
+          <tr>
+            <td>Execution</td>
+            <td><code>POST /api/proxy/execute</code></td>
+            <td>Runs one composed request, writes one history entry</td>
+          </tr>
+          <tr>
+            <td>Console history</td>
+            <td><code>GET /api/history</code>, <code>GET|DELETE /api/history/{id}</code>, <code>DELETE /api/history</code></td>
+            <td>Paged with <code>skip</code>, <code>take</code>, <code>q</code>; <code>q</code> matches URL or method</td>
+          </tr>
+          <tr>
+            <td>Routed traffic</td>
+            <td><code>GET /api/routed</code>, <code>GET|DELETE /api/routed/{id}</code>, <code>DELETE /api/routed</code></td>
+            <td>Same envelope as history, separate store</td>
+          </tr>
+          <tr>
+            <td>Header sets</td>
+            <td><code>GET|POST /api/headers</code>, <code>PUT|DELETE /api/headers/{setId}</code></td>
+            <td>The server assigns the id on create</td>
+          </tr>
+          <tr>
+            <td>Storage</td>
+            <td><code>GET /api/storage</code></td>
+            <td>Byte usage and entry counts per store. Full capture is only safe if its cost is visible</td>
+          </tr>
+          <tr>
+            <td>Liveness</td>
+            <td><code>GET /health</code></td>
+            <td>Outside the group. Anonymous, and the one path exempt from the unconfigured-tenant <code>503</code></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="route">
+      <h2>02.1 &nbsp; The forwarding contract: <code>/route</code></h2>
+
+      <p>
+        <code>/route</code> relays a request without altering it. The verb, path, query string,
+        body and all non-excluded headers arrive at the upstream as the caller composed them, and
+        the upstream's status, headers and body come back untouched. The same endpoint exists in
+        both modes; only the next hop differs.
+      </p>
+
+      <h3>URL translation</h3>
+
+      <p>
+        The upstream URI is the resolved origin, then the remaining path, then the original query
+        string verbatim. The port lives only in the origin and is never repeated in the path.
+        Taking the motivating case:
+      </p>
+
+<pre><code>Original call the application makes
+  POST http://10.0.0.5:8080/services/orders/service.svr?wsdl
+
+Header form &mdash; the path is untouched, the origin comes from a header
+  POST http://localhost:8091/route/services/orders/service.svr?wsdl
+  X-DevConduit-Target: http://10.0.0.5:8080
+
+Alias form &mdash; with "Routes": { "orders": "http://10.0.0.5:8080" }
+  POST http://localhost:8091/route/orders/services/orders/service.svr?wsdl
+       &crarr; the leading "orders" segment is consumed; the rest is the upstream path
+
+Dev.Conduit reconstructs, either way
+  http://10.0.0.5:8080/services/orders/service.svr?wsdl</code></pre>
+
+      <h3>Target resolution</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 8%">Order</th><th style="width: 42%">Rule</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>The first remaining path segment matches a route name under <code>DevConduit:Routes</code>, case-insensitively</td>
+            <td>That segment is consumed; the alias origin is the target</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><code>X-DevConduit-Target</code> names an origin</td>
+            <td>Nothing is consumed; the whole path is the upstream path</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Neither applies</td>
+            <td><code>400</code> with <code>errorKind: "no_target"</code> and the configured alias names in the message</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        A resolved origin must be an absolute <code>http</code> or <code>https</code> URI with no
+        path, no query, no fragment and no embedded credentials; <code>RouteOrigin.TryParse</code>
+        rejects each of those with its own message, and embedded credentials are refused with a
+        pointer at <code>X-DevConduit-Upstream-Authorization</code>. When
+        <code>DevConduit:Route:AliasesOnly</code> is true, <code>X-DevConduit-Target</code> is refused
+        outright (<code>errorKind: "aliases_only"</code>) and only aliases resolve.
+      </p>
+
+      <p>
+        Aliases are the route names under <code>DevConduit:Routes</code>, each a string origin or an
+        object <code>{ "Target": origin, "Remote": name }</code>, read once by
+        <code>RoutingConfigurationParser</code> and validated once, at construction of
+        <code>RouteAliasTable</code>. Server mode reads only the target and ignores the remote. A
+        malformed entry is dropped and logged at error level with its reason; the host still
+        starts. If <code>AliasesOnly</code> is true and no usable alias survives validation,
+        startup warns that <code>/route</code> will refuse everything.
+      </p>
+
+      <h3 id="header-table">Header transformation</h3>
+
+      <p>
+        This is the contract. Headers are classified by <code>RouteHeaderPolicy</code> and applied
+        by <code>RouteForwarder.CopyRequestHeaders</code>; the credential and <code>Host</code>
+        headers are then written by the mode's <code>IRouteEgress</code> implementation —
+        <code>UpstreamRouteEgress</code> in server mode, <code>RemoteRelayRouteEgress</code> in
+        local mode.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 27%">Inbound header</th>
+            <th style="width: 36%">Server mode &rarr; the upstream</th>
+            <th>Local mode &rarr; the remote Dev.Conduit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Authorization</code></td>
+            <td><strong>Dropped.</strong> This is Dev.Conduit's own Entra credential and must never reach the upstream.</td>
+            <td><strong>Moved.</strong> Re-sent as <code>X-DevConduit-Upstream-Authorization</code> — unless the caller set that header itself, in which case the caller's value wins and this one is discarded. Local mode asks for no credential of its own, so an inbound one was meant for the upstream.</td>
+          </tr>
+          <tr>
+            <td><code>X-DevConduit-Upstream-Authorization</code></td>
+            <td><strong>Renamed.</strong> Dropped by the copy loop as a control header, then re-emitted by the egress as <code>Authorization</code> on the outbound request.</td>
+            <td><strong>Preserved under the same name</strong>, for the remote instance to rename on its own egress.</td>
+          </tr>
+          <tr>
+            <td>&mdash; <em>emitted</em> <code>Authorization</code></td>
+            <td>The value of the inbound <code>X-DevConduit-Upstream-Authorization</code>, when non-empty. Absent otherwise.</td>
+            <td><code>Bearer &lt;token acquired by MSAL for the developer&gt;</code>. Always present.</td>
+          </tr>
+          <tr>
+            <td>&mdash; <em>emitted</em> <code>X-DevConduit-Target</code></td>
+            <td>Not sent. The upstream is the destination.</td>
+            <td>The authority of the origin resolved <em>here</em>, from the same alias table the server uses.</td>
+          </tr>
+          <tr>
+            <td><code>X-DevConduit-Target</code> (inbound)</td>
+            <td colspan="2"><strong>Consumed.</strong> Control header; never relayed. The egress re-emits it in local mode with the value it resolved.</td>
+          </tr>
+          <tr>
+            <td><code>X-DevConduit-Client</code></td>
+            <td colspan="2"><strong>Consumed.</strong> Control header; never relayed.</td>
+          </tr>
+          <tr>
+            <td><code>X-DevConduit-Local-Secret</code></td>
+            <td colspan="2"><strong>Consumed.</strong> Control header; never relayed. It authenticates the local listener it was sent to and has no meaning beyond it.</td>
+          </tr>
+          <tr>
+            <td><code>Host</code></td>
+            <td><strong>Rewritten</strong> to the upstream authority.</td>
+            <td><strong>Rewritten</strong> to the remote Dev.Conduit authority.</td>
+          </tr>
+          <tr>
+            <td><code>Content-Length</code></td>
+            <td colspan="2"><strong>Not copied.</strong> Taken from the inbound framing and set on the outbound <code>StreamContent</code>, so a rewritten body cannot desynchronise from its declared length.</td>
+          </tr>
+          <tr>
+            <td><code>Cookie</code></td>
+            <td colspan="2">
+              <strong>Dropped entirely</strong> unless <code>DevConduit:Route:ForwardCookies</code> is
+              true. When it is true, Dev.Conduit's own cookies are still removed unconditionally:
+              <code>DevConduit.Auth</code>, and anything prefixed
+              <code>.AspNetCore.Antiforgery.</code>, <code>.AspNetCore.Correlation.</code> or
+              <code>.AspNetCore.OpenIdConnect.Nonce.</code>. There is no setting that turns that off.
+            </td>
+          </tr>
+          <tr>
+            <td><code>Connection</code>, <code>Keep-Alive</code>, <code>Proxy-Authenticate</code>, <code>Proxy-Authorization</code>, <code>TE</code>, <code>Trailer</code>, <code>Transfer-Encoding</code>, <code>Upgrade</code></td>
+            <td colspan="2"><strong>Dropped</strong> as hop-by-hop, per RFC 9110 — along with every header <em>named in</em> the <code>Connection</code> header, which is itself connection-scoped.</td>
+          </tr>
+          <tr>
+            <td>Everything else</td>
+            <td colspan="2"><strong>Forwarded verbatim</strong>, split between request headers and content headers as <code>HttpRequestMessage</code> requires. A header the runtime refuses is logged and skipped rather than failing the call.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="callout">
+        <strong>Why two Authorization headers.</strong> The caller holds one credential for
+        Dev.Conduit and, optionally, a separate one for the upstream. Neither leaks into the other's
+        request: Dev.Conduit's token is consumed by authentication and dropped, and the upstream's
+        credential travels under a name nothing else looks at until the last hop renames it back.
+        A SOAP POST sent with <code>X-DevConduit-Upstream-Authorization: Basic …</code> reaches the
+        upstream as <code>Authorization: Basic …</code>, and the upstream never sees the Entra
+        token.
+      </div>
+
+      <div class="callout good">
+        <strong>The local shared secret stops at the listener it authenticates.</strong>
+        <code>X-DevConduit-Local-Secret</code> is stripped by the forward-proxy ingress and is in
+        <code>RouteHeaderPolicy.Control</code>, so a request that carries it into
+        <code>/route</code> does not forward it to the next hop in either mode. It is also on the
+        default <code>DevConduit:SecretHeaderNames</code> list, so any residual occurrence is
+        captured as <code>***redacted***</code> rather than in clear text.
+      </div>
+
+      <h3>Response direction</h3>
+
+      <ul>
+        <li>Status code and every response and content header are copied, minus the hop-by-hop set. A header Kestrel rejects is logged at information level and dropped rather than failing the response.</li>
+        <li>No decompression. The route client is built with <code>AutomaticDecompression = None</code>, so the payload arrives with whatever <code>Content-Encoding</code> the upstream chose and the caller receives the bytes the upstream actually sent.</li>
+        <li>No redirect following. <code>AllowAutoRedirect</code> is false, so a <code>3xx</code> is relayed as a <code>3xx</code>.</li>
+        <li>No cookie jar. <code>UseCookies</code> is false on every client, so Dev.Conduit never accumulates upstream state between requests.</li>
+      </ul>
+
+      <h3>Streaming</h3>
+
+      <p>
+        Neither direction is buffered. The request body is wrapped in a pass-through reader as
+        <code>HttpClient</code> consumes it; the response is read with
+        <code>HttpCompletionOption.ResponseHeadersRead</code> and copied to the caller in 64 KB
+        chunks from a pooled buffer. Memory does not scale with payload size, and a large SOAP
+        response starts arriving at the caller before the upstream has finished sending it.
+      </p>
+
+      <p>
+        The per-request timeout comes from <code>DevConduit:Route:TimeoutSeconds</code> (default
+        <code>100</code>, clamped to <code>600</code>) and is linked to
+        <code>HttpContext.RequestAborted</code>, so a caller who disconnects does not leave an
+        upstream call running. If the response body is cut short <em>after</em> headers have gone
+        out, the only honest signal left is to abort the response — pretending it completed would
+        hand the caller a truncated body that looks whole.
+      </p>
+
+      <h3>Failure responses</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 40%">Condition</th><th style="width: 14%">Status</th><th>Body</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>No target resolved, or the target is malformed</td><td><code>400</code></td><td><code>errorKind</code>: <code>no_target</code> | <code>invalid_target</code> | <code>aliases_only</code></td></tr>
+          <tr><td>Caller is unauthenticated</td><td><code>401</code> with <code>WWW-Authenticate: Bearer</code>, or <code>302</code> to sign-in when the request accepts <code>text/html</code></td><td>Empty</td></tr>
+          <tr><td>Token lacks the required scope, or the principal is not on the allow list</td><td><code>403</code></td><td><code>errorKind</code>: <code>insufficient_scope</code> | <code>not_allowed</code></td></tr>
+          <tr><td>The upstream resolves into <code>DevConduit:BlockedEgressNetworks</code></td><td><code>400</code></td><td><code>errorKind: "Blocked"</code>, with <code>target</code> and <code>upstreamUrl</code>. A request Dev.Conduit will not route, like <code>aliases_only</code>; routed history records <code>Blocked</code></td></tr>
+          <tr><td>Upstream DNS, TLS, connection or timeout failure</td><td><code>502</code></td><td><code>errorKind</code>: <code>Dns</code> | <code>Tls</code> | <code>Connection</code> | <code>Timeout</code>, with <code>target</code> and <code>upstreamUrl</code></td></tr>
+          <tr><td>Anything unhandled inside the branch</td><td><code>502</code></td><td><code>errorKind: "Unexpected"</code>. A <code>500</code> here would be indistinguishable from the upstream's own</td></tr>
+          <tr><td>Local mode: shared secret set, request did not present it</td><td><code>401</code></td><td><code>errorKind: "local_secret_required"</code>, naming the header</td></tr>
+          <tr><td>Local mode: the remote instance refused this machine's token</td><td><code>401</code> or <code>403</code>, as the remote sent it</td><td><code>errorKind</code>: <code>remote_unauthorized</code> | <code>remote_forbidden</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Capture</h3>
+
+      <p>
+        Routed traffic is captured in full, bodies included. The volume cost was accepted
+        deliberately; these are the mitigations, all of them structural rather than advisory.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 34%">Concern</th><th>Mitigation</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Routed volume evicting console history</td><td>A separate store, a separate index, a separate cap and a separate write lock. The two can never compete.</td></tr>
+          <tr><td>Unbounded growth</td><td><code>MaxRoutedHistoryEntries</code> (5000) and <code>MaxRoutedStoredBodyBytes</code> (2 MiB). Pruned entries have their files deleted, not just their index rows.</td></tr>
+          <tr><td>Capture interfering with streaming</td><td>Bodies are teed into a <code>CappedBuffer</code> that stops retaining at the cap and keeps counting. The caller always receives the complete, unmodified stream.</td></tr>
+          <tr><td>Secrets on disk</td><td>Header values matching <code>DevConduit:SecretHeaderNames</code> are stored as <code>***redacted***</code>.</td></tr>
+          <tr><td>Capture failing a request</td><td>Exchanges are queued to a bounded channel (capacity 256, <code>DropOldest</code>) and written by a background service. A capture error is logged and swallowed; under a flood the oldest pending capture is dropped rather than the memory.</td></tr>
+          <tr><td>Latency</td><td>Serialisation and disk work happen off the response path, after the bytes have reached the caller.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        Textual payloads are stored as text so they are searchable; anything non-textual, and
+        anything still carrying a <code>Content-Encoding</code>, is stored as base64. A body larger
+        than the cap is stored truncated with a flag and its true byte count.
+      </p>
+    </section>
+
+    <section id="local-mode">
+      <h2>02.2 &nbsp; Local mode</h2>
+
+      <p>
+        Local mode offers two ingress styles on two ports. They exist because two different
+        classes of client need routing and they cannot be addressed the same way.
+      </p>
+
+      <div class="diagram">
+        <div class="diagram-label">Two ingress styles &middot; one egress</div>
+        <div class="diagram-columns">
+          <div class="diagram-col">
+            <div class="diagram-label">A &middot; reverse proxy</div>
+            <div class="diagram-flow">
+              <div class="node">
+                <div class="node-title">Client with a configurable base URL</div>
+                <div class="node-meta">Angular proxy.conf.json, curl, any SDK</div>
+              </div>
+              <div class="arrow">&darr;</div>
+              <div class="node amber">
+                <div class="node-title">Kestrel :8092 &middot; /route</div>
+                <div class="node-meta">same URL contract as server mode<br>alias segment or X-DevConduit-Target</div>
+              </div>
+            </div>
+          </div>
+          <div class="diagram-col">
+            <div class="diagram-label">B &middot; forward proxy</div>
+            <div class="diagram-flow">
+              <div class="node">
+                <div class="node-title">Client with no rewritable base URL</div>
+                <div class="node-meta">legacy exe, Java client, anything reading HTTP_PROXY</div>
+              </div>
+              <div class="arrow">&darr;</div>
+              <div class="node amber">
+                <div class="node-title">Raw TcpListener :8093</div>
+                <div class="node-meta">absolute-form request targets + CONNECT<br>host matched against route origins and each remote's Targets</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="diagram-note">
+          Both converge on <code>RemoteRelay</code>, which chooses the remote, addresses it the
+          same way and presents the same three headers, so the two ingress styles cannot drift
+          apart in what they send or where they send it.
+        </p>
+      </div>
+
+      <h3>Ingress A — the reverse proxy</h3>
+
+      <p>
+        Identical URL contract to server mode: point the client at
+        <code>http://127.0.0.1:8092/route/…</code> and name the upstream with an alias segment or
+        an <code>X-DevConduit-Target</code> header. <code>DevConduit:Routes</code> is read from the
+        same configuration section server mode uses, so an alias resolves on the workstation
+        before the call leaves it. A remote is then chosen for the resolved origin, first match
+        wins: the remote of the route the alias segment named or whose target is the same host and
+        port; else the first remote whose <code>Targets</code> rule matches; else
+        <code>DevConduit:DefaultRemote</code>, which defaults to the only remote when there is one.
+        With several remotes, no default and nothing claiming the origin, the answer is
+        <code>400</code> with <code>errorKind: "no_remote"</code>. The request is then rewritten to
+        <code>{remote endpoint}/route{remaining path}{query}</code> and relayed with a token for
+        that remote's identity and scopes; a capture records the remote as an
+        <code>X-DevConduit-Remote</code> header item. Bodies stream in both directions exactly as in
+        server mode — it is the same <code>RouteForwarder</code>, with a different
+        <code>IRouteEgress</code> behind it.
+      </p>
+
+      <p>
+        A <code>401</code> or <code>403</code> raised <em>by the remote instance</em> is about this
+        machine's token, not about the upstream, and relaying it verbatim would send a developer
+        looking at the wrong end of the chain. Local mode preserves the status code and replaces
+        the body with one that names what to fix. The two are told apart by the shape of the
+        refusal rather than by status alone: Dev.Conduit challenges with an empty bearer
+        <code>401</code>, and refuses with a small JSON body naming one of its own error kinds.
+        Detection buffers at most 8 KB and only for a JSON content type, so a large upstream
+        payload is never held in memory. An upstream's own <code>401</code> or <code>403</code>,
+        relayed through the remote, arrives untouched.
+      </p>
+
+      <h3>Ingress B — the forward proxy</h3>
+
+      <p>
+        Set <code>HTTP_PROXY=http://127.0.0.1:8093</code> and change nothing else. This is the
+        option for a client that has no notion of a base URL you can rewrite.
+      </p>
+
+      <div class="callout">
+        <strong>Why this is not Kestrel.</strong> A forward proxy is addressed with the
+        absolute-form request target — <code>GET http://host:port/path HTTP/1.1</code> — and must
+        accept the <code>CONNECT</code> verb. Kestrel hands an application neither. The listener is
+        therefore a raw <code>TcpListener</code> with its own request-head parser, bound to the
+        same loopback address the reverse proxy uses, and it never runs in server mode.
+      </div>
+
+      <p>
+        Per request, the listener decides exactly one thing: does the host match a forward-proxy
+        rule &mdash; a route origin or a remote's <code>Targets</code>? A match is relayed to that
+        rule's remote, a route winning over a <code>Targets</code> rule exactly as on
+        <code>/route</code>; there is no default-remote fallback here.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 26%">Request</th><th style="width: 37%">Host matches a rule</th><th>Host matches nothing</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>GET http://host/path</code></td>
+            <td>Relayed through the matching remote instance, with its Entra token and <code>X-DevConduit-Target</code> attached</td>
+            <td>Forwarded directly to the origin, unmodified</td>
+          </tr>
+          <tr>
+            <td><code>CONNECT host:port</code></td>
+            <td><strong>Refused</strong> with <code>502</code> and a body explaining why, and pointing at the reverse-proxy form for the same host</td>
+            <td><strong>Tunnelled.</strong> <code>200 Connection Established</code>, then bytes both ways; nothing is inspected</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        A local forward proxy that broke unrelated traffic would be worse than no forward proxy,
+        so everything outside the rules passes through untouched. Rules match on host and port,
+        never on path, and matching is case-insensitive.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Rule form</th><th style="width: 30%">Example</th><th>Matches</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Bare host</td><td><code>orders.internal.example.com</code></td><td>That host on any port</td></tr>
+          <tr><td>Host and port</td><td><code>10.0.0.5:8080</code></td><td>That host on that port only</td></tr>
+          <tr><td>Bare IP address</td><td><code>10.0.0.5</code></td><td>That address on any port</td></tr>
+          <tr><td>Bracketed IPv6</td><td><code>[::1]:8080</code></td><td>That address on that port; a bare literal is normalised to the bracketed form so both spellings compare equal</td></tr>
+          <tr><td>Leading wildcard</td><td><code>*.staging.example.com</code></td><td>Any subdomain, but not the apex itself</td></tr>
+          <tr><td>With a scheme</td><td><code>http://10.0.0.5:8080</code></td><td>Same as host-and-port; the scheme is ignored, so a rule can be pasted straight out of a base address</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        Two kinds of destination never match, whatever the rules say: any remote Dev.Conduit endpoint, and
+        local mode's own two ports on loopback. That guard is what stops <code>HTTP_PROXY</code>
+        pointing at this process from folding it into itself. The relay's own
+        <code>HttpClient</code> is separately configured with <code>UseProxy = false</code> for the
+        same reason — a developer running local mode has very likely set <code>HTTP_PROXY</code>
+        in the environment this process itself inherits.
+      </p>
+
+      <h4>What the raw listener guarantees</h4>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 26%">Concern</th><th>Behaviour</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Slow clients</td><td>30 seconds to finish sending the first request head; 120 seconds idle between keep-alive requests. A peer that opens a connection and dribbles bytes cannot hold a slot.</td></tr>
+          <tr><td>Oversized head</td><td>Request line capped at 8 KB, the whole head at 64 KB.</td></tr>
+          <tr><td>Keep-alive</td><td>Held open only when the response is properly framed, the body was fully drained, no pipelined bytes are pending, and the client did not ask to close. Otherwise answered with <code>Connection: close</code> and closed cleanly.</td></tr>
+          <tr><td>Errors</td><td>Always a well-formed HTTP response with an explanatory plain-text body, never a dropped connection. A write failure to a peer that already went away is swallowed rather than logged as an exception on the accept loop.</td></tr>
+          <tr><td>Chunked request bodies</td><td><strong>Refused</strong> with <code>501</code> and a message pointing at <code>/route</code>, which streams them without re-framing. The forward proxy relays length-delimited bodies only.</td></tr>
+          <tr><td>Sockets</td><td>Disposed on every path, tunnels torn down at shutdown included. A pending socket read does not observe a cancellation token, so shutdown closes the socket underneath it.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>The loopback constraint</h3>
+
+      <p>
+        Local mode performs no inbound authentication. That absence is exactly what buys zero
+        application changes — and it means loopback is the only boundary keeping the developer's
+        Entra token out of reach of anything off the machine. The constraint is therefore enforced
+        twice, on purpose:
+      </p>
+
+      <ul>
+        <li><code>LocalModeStartup.Validate</code> runs before anything binds, and refuses to start when <code>BindAddress</code> is not a loopback address, when <code>DevConduit:Remotes</code> is empty or an endpoint is not an absolute <code>http</code>/<code>https</code> URI, when a route or <code>DevConduit:DefaultRemote</code> names an unknown remote, when several remotes and no default leave a route with nowhere to go, or when the two ports are invalid or identical. Each problem is printed with the setting name and why it matters, and the process exits non-zero.</li>
+        <li><code>LocalModeStartup</code> binds Kestrel in code to <code>BindAddress:Port</code> and swaps in an empty Kestrel configuration loader, so no <code>Kestrel:Endpoints</code> entry from configuration (the UAT https endpoint on <code>0.0.0.0</code>, for one) can open a second, off-loopback listener. Ignored endpoints are logged at startup.</li>
+        <li><code>ForwardProxyServer.StartAsync</code> re-resolves the bind address and throws if it is not loopback, so no code path can bring the raw listener up off-loopback even if the first check were bypassed.</li>
+      </ul>
+
+      <p>
+        A remote whose effective <code>TenantId</code> or <code>ClientId</code> is missing is
+        deliberately <em>not</em> fatal. The host starts, serves the console and logs a warning
+        naming the remote; each request relayed to it then fails with a message naming the
+        settings. That lets a developer bring local mode up and read the
+        startup banner before touching the app registration.
+      </p>
+    </section>
+
+    <section id="authentication">
+      <h2>02.3 &nbsp; Authentication</h2>
+
+      <h3>The console session: authorization code, PKCE, <code>response_mode=query</code></h3>
+
+      <p>
+        Server mode registers two schemes: <code>AddMicrosoftIdentityWebAppAuthentication</code>
+        for interactive sign-in and a cookie session afterwards, and
+        <code>AddMicrosoftIdentityWebApiAuthentication</code> for bearer validation on
+        <code>/route</code>. Registering the API scheme second makes it the default, which is
+        wrong for every endpoint except <code>/route</code>, so the defaults are put back
+        explicitly: cookie for authenticate and sign-in, OpenID Connect for challenge and
+        sign-out. Without that, the console would answer <code>401</code> instead of redirecting
+        to Entra.
+      </p>
+
+      <p>
+        The OIDC handler is then post-configured with <code>ResponseType = code</code>,
+        <code>ResponseMode = query</code>, <code>UsePkce = true</code> and
+        <code>SaveTokens = false</code>, and the correlation and nonce cookies are pinned to
+        <code>SameSite=Lax</code> with <code>SecurePolicy = SameAsRequest</code>.
+      </p>
+
+      <div class="callout">
+        <strong>Why <code>response_mode=query</code> is load-bearing.</strong> The library default
+        is <code>form_post</code>. That makes the authorization response a cross-site
+        <code>POST</code> from <code>login.microsoftonline.com</code> back to the callback, which
+        means the correlation and nonce cookies must be <code>SameSite=None</code> to survive the
+        round trip — and browsers only accept <code>SameSite=None</code> on cookies also marked
+        <code>Secure</code>, which a plain-<code>http</code> localhost listener cannot set.
+        The result is a sign-in that loops back to the login page with no useful error.
+        Switching to <code>query</code> makes the callback a top-level <code>GET</code>
+        navigation, which <code>SameSite=Lax</code> permits, so the flow completes over plain
+        <code>http</code> on localhost. The trade is that the authorization code flow requires a
+        client credential. Here that is a federated managed identity assertion, with a client
+        secret supported only as a fallback; see <a href="#credential">the client credential</a>
+        below.
+      </div>
+
+      <p>
+        The session cookie is named <code>DevConduit.Auth</code>, is <code>HttpOnly</code>,
+        <code>SameSite=Lax</code>, <code>SecurePolicy = SameAsRequest</code>, sliding, with a
+        10-hour lifetime.
+      </p>
+
+      <h3>Admission control on <code>/route</code></h3>
+
+      <p>
+        <code>RouteAuthorizer</code> tries the bearer scheme first, because that is how
+        programmatic callers arrive, and falls back to the cookie session so a signed-in developer
+        can exercise the endpoint by hand from the browser or from <code>curl</code> with a
+        session cookie. Both are then held to the same <code>RouteAccess</code> policy, which
+        carries the same <code>AllowedUserOids</code> / <code>AllowedGroupIds</code> allow-list
+        rules as the global policy but accepts either scheme.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 26%">Step</th><th style="width: 37%">Bearer caller</th><th>Cookie caller</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Audience</td><td><code>api://&lt;client-id&gt;</code>, from the app registration's Application ID URI</td><td>n/a — the session is backed by an id_token</td></tr>
+          <tr><td>Allow list</td><td colspan="2">Applied identically. Empty <code>AllowedUserOids</code> and <code>AllowedGroupIds</code> means any authenticated tenant user.</td></tr>
+          <tr><td>Delegated scope</td><td><strong>Required.</strong> The token must carry <code>DevConduit.Forward</code> (configurable at <code>AzureAd:Scopes</code>) in <code>scp</code> or the SOAP-namespaced scope claim. Entra packs scopes into one space-separated value, which is split before matching.</td><td><strong>Exempt.</strong> An id_token-backed session carries no scope claim; requiring one would lock the browser out of <code>/route</code> entirely.</td></tr>
+          <tr><td>Challenge on failure</td><td><code>401</code> with <code>WWW-Authenticate: Bearer</code></td><td><code>302</code> to sign-in, but only when the request's <code>Accept</code> header names <code>text/html</code>. A redirect to a login page is useless to a programmatic caller.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Token acquisition in local mode</h3>
+
+      <p>
+        <code>MsalDevConduitTokenProvider</code> signs in as a <em>person</em>, not a service
+        principal, because routed history on the remote instance is attributed to whoever the
+        token belongs to. Each remote's identity is its own <code>TenantId</code> and
+        <code>ClientId</code>, inherited from <code>AzureAd</code> when absent, and its scopes
+        default to <code>api://{ClientId}/DevConduit.Forward</code>. The provider keeps one MSAL
+        public client per distinct tenant and client id pair, and every request uses the token for
+        its remote's identity and scopes.
+      </p>
+
+      <ol>
+        <li><strong>Silent</strong>, against the encrypted on-disk cache. Instant and silent when a cached token exists.</li>
+        <li><strong>Interactive browser sign-in</strong>, when <code>InteractiveFallback</code> is true and the process is interactive. The browser opens against <code>http://localhost</code>, which the app registration must list as a <em>Mobile and desktop applications</em> redirect URI.</li>
+        <li><strong>Device code</strong>, when interactive sign-in is disabled or unavailable. The code and URL are logged at warning level so they are visible in a console or a CI log.</li>
+      </ol>
+
+      <p>
+        The token is held in memory and reused until five minutes before expiry, and persisted to
+        <code>{CacheDirectory}\devconduit.msal.cache</code>, DPAPI-protected on Windows. Every public
+        client is registered with one shared <code>MsalCacheHelper</code> over that one file;
+        MSAL keeps each client id's entries apart inside it. A developer signs in once per
+        identity per machine, not once per process. Acquisition, for every identity, is
+        serialised behind one semaphore: a cold start with ten parallel calls opens one sign-in
+        prompt rather than ten, and two clients never write the shared file at once. If the cache cannot be opened, local mode logs a warning and continues with an
+        in-memory cache — an extra sign-in, not a failed request.
+      </p>
+
+      <p>
+        <code>LocalTokenWarmup</code> acquires a token for each distinct identity during host
+        startup rather than on the first proxied call, so each app registration asks for at most
+        one sign-in there. Deferring it would mean an application appearing to hang on its
+        first request while a browser window opens behind it, with nothing on screen explaining
+        the wait. If that startup sign-in fails the host keeps running: the console stays
+        reachable, the error is visible in one place, and each relayed request reports the same
+        failure with its own context.
+      </p>
+
+      <h3>The local-mode principal</h3>
+
+      <p>
+        <code>LocalModeAuthenticationHandler</code> authenticates every request as one fixed
+        pseudo-user, <code>local</code>, carrying an object-identifier claim of the same value.
+        This is not a security control — the boundary is the loopback bind — but it gives the
+        console, the <code>/api</code> surface and the storage layer a stable principal to work
+        against instead of forcing them to handle anonymity. <code>local</code> is also a valid
+        storage path segment under the same rules a real <code>oid</code> is checked by.
+      </p>
+
+      <h3 id="credential">Two tenants and the client credential</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Tenant</th><th>Holds</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>The users' tenant<br><code>00000000-0000-0000-0000-000000000001</code> (example)</td><td>The user accounts. Users sign in from their own tenant, so it is the issuer of every token and the value of <code>AzureAd:TenantId</code>, which local mode inherits.</td></tr>
+          <tr><td>The server's tenant<br><code>00000000-0000-0000-0000-000000000002</code> (example)</td><td>The Azure VM that runs server mode, the user-assigned managed identity (UAMI) attached to it, and the app registration, which is multi-tenant (<code>AzureADMultipleOrgs</code>).</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        The registration has no client secret. A federated identity credential on it,
+        <code>devconduit-vm-uami</code>, trusts the UAMI: issuer
+        <code>https://login.microsoftonline.com/{ServerTenantId}/v2.0</code>, subject the UAMI's
+        principal (object) id, audience <code>api://AzureADTokenExchange</code>. To redeem an
+        authorization code, server mode asks the VM's instance metadata service for a UAMI token
+        and presents it to Entra as a signed assertion in place of a secret. The configuration is
+        one <code>AzureAd:ClientCredentials</code> entry:
+      </p>
+
+<pre><code>"ClientCredentials": [
+  {
+    "SourceType": "SignedAssertionFromManagedIdentity",
+    "ManagedIdentityClientId": "&lt;uami-client-id&gt;"
+  }
+]</code></pre>
+
+      <div class="callout">
+        <strong>Why it has to be this shape.</strong> Entra accepts only a <em>user-assigned</em>
+        managed identity as a federated identity credential; a system-assigned one cannot be
+        used. The identity and the app registration must be in the same tenant, so the
+        registration lives in the server's tenant beside the VM. Serving users from another
+        tenant then requires a multi-tenant registration and admin consent in that tenant. A
+        Cloud Application Administrator or Global Administrator of the users' tenant grants it
+        once, at
+        <code>https://login.microsoftonline.com/00000000-0000-0000-0000-000000000001/adminconsent?client_id=&lt;appId&gt;</code>;
+        users then sign in with their own accounts and no guest accounts exist. The redirect back
+        to localhost after consent may fail to load; consent is granted regardless.
+      </div>
+
+      <p>
+        <code>AzureAd:ClientSecret</code> remains supported as a fallback, for server mode off the
+        VM, where no managed identity exists and the assertion cannot be obtained. A usable
+        <code>ClientCredentials</code> entry takes precedence over it. Local mode needs neither:
+        it is a public client and holds no credential. Startup logs which credential is in use,
+        as <code>Entra client credential: …</code>, and warns, naming both options, only when none
+        is configured.
+      </p>
+
+      <h3>Required app registration</h3>
+
+      <p>
+        <code>register-app.ps1</code> at the repository root provisions all of this with the Azure
+        CLI, idempotently and with <code>-WhatIf</code> support: it creates or reuses the UAMI
+        and attaches it to the VM, converges the registration to the table below, creates or
+        updates the federated credential and the service principal, and prints the consent link
+        and the <code>AzureAd</code> values the server's setup window takes. It takes both tenant ids,
+        <code>-UserTenantId</code> and <code>-ServerTenantId</code>, and running it needs
+        Application Developer in the server's tenant, plus Managed Identity Contributor and Virtual Machine Contributor on the
+        resource group.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Blade</th><th style="width: 34%">Setting</th><th>Needed for</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Overview</td><td>In the server's tenant; <em>Accounts in any organizational directory</em></td><td>Users from the users' tenant, alongside a managed identity in the server's tenant</td></tr>
+          <tr><td>Authentication &rarr; Web</td><td>Redirect URI <code>http://localhost:8091/signin-oidc</code>; front-channel logout <code>http://localhost:8091/signout-callback-oidc</code></td><td>The browser console. Being a localhost URI, it works only in a browser on the VM itself; workstations use local mode</td></tr>
+          <tr><td>Certificates &amp; secrets &rarr; Federated credentials</td><td><code>devconduit-vm-uami</code>, trusting the VM's UAMI</td><td>The authorization code flow, with no secret</td></tr>
+          <tr><td>Expose an API</td><td>Application ID URI <code>api://&lt;client-id&gt;</code>, scope <code>DevConduit.Forward</code></td><td>Bearer callers of <code>/route</code></td></tr>
+          <tr><td>API permissions</td><td>Microsoft Graph <code>User.Read</code>, and the <code>DevConduit.Forward</code> scope under <em>My APIs</em>, admin-consented in the users' tenant</td><td>Sign-in, and local mode being able to request the scope</td></tr>
+          <tr><td>Authentication &rarr; Mobile and desktop</td><td>Redirect URI <code>http://localhost</code></td><td>Interactive MSAL sign-in on the workstation</td></tr>
+          <tr><td>Authentication &rarr; Advanced</td><td><em>Allow public client flows</em> = Yes (<code>isFallbackPublicClient</code>)</td><td>Device-code sign-in in local mode</td></tr>
+          <tr><td>Token configuration</td><td>Groups claim (<code>-IncludeGroupClaims</code>)</td><td>Only if <code>AllowedGroupIds</code> is used. <code>AllowedUserOids</code> needs no extra configuration</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        While <code>AzureAd:TenantId</code> or <code>AzureAd:ClientId</code> still look like
+        placeholders — empty, starting with <code>&lt;</code>, or containing <code>YOUR-</code> —
+        server mode logs a loud startup banner and answers every request except
+        <code>/health</code> with <code>503</code> and the same instructions. It does not crash,
+        so a developer gets a readable page instead of an opaque sign-in failure.
+      </p>
+    </section>
+
+    <section id="certificates">
+      <h2>02.4 &nbsp; Certificates, <code>/cert</code>, export and import</h2>
+
+      <p>
+        A server with a host name owns its TLS certificate. It creates, stores and rotates it
+        itself; nothing about certificates appears in settings. The host name is
+        <code>DevConduit:Server:Hostname</code>, or, when that is blank and the process is the
+        service or runs beside the installed service (the rule <code>DataRootDefault</code>
+        applies), this computer's DNS name: <code>ServerHostnameDefault</code> takes
+        <code>IPGlobalProperties</code>' host and domain names when there is a primary DNS suffix
+        or domain, else <code>Environment.MachineName</code>, lower-cased and checked with
+        <code>DnsHostname</code>. A console run without the service keeps
+        <code>http://localhost:8091</code>, and an explicit <code>Kestrel:Endpoints</code> still
+        overrides, in which case no default is added. The export command, the tray's console link,
+        its export and the Server page (which shows the default greyed and never writes it) all
+        see the same effective name. A client learns everything it needs —
+        host name, address, port, Entra ids, routes, the server certificates to trust, and a
+        client certificate — from one file the server exports, <code>&lt;hostname&gt;.conduit</code>,
+        and keeps it current through an internal endpoint, <code>/cert</code>.
+      </p>
+
+      <h3>The server side</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Piece</th><th>What it is</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Server certificate</td><td>Self-signed, ECDSA P-256, CA=false, server authentication only, SAN = the host name, one year. Served on <code>https://0.0.0.0:{Port}</code> through Kestrel's <code>ServerCertificateSelector</code>, so a rotation needs no restart. Any <code>Kestrel:Endpoints</code> URL wins and turns all of this off, with a warning; <code>ManagedHttpsEndpoint.IsOverridden</code> is the one rule the server, the export command and the tray's console link all apply.</td></tr>
+          <tr><td>Client authority</td><td>A separate private CA, ECDSA P-256, CA=true with path length 0, certificate signing only, ten years, named for the host. It signs client certificates and nothing else, is never exported, and is never installed in any store. A host name change, or its expiry, replaces it: every enrollment it signed is revoked (<code>hostname changed</code> or <code>client authority expired</code>), the log says every client must re-import, and its key is deleted at once; only its thumbprint and host name remain, on its enrollments, for <code>certs list</code>.</td></tr>
+          <tr><td>Enrollments</td><td>Each export creates one, with a random 32-hex-digit id, recorded in the ledger and carried in every client certificate of it as the subject's single OU. Renewals inherit it, because a renewal must ask for exactly the enrollment's subject. Revocation is by enrollment: every serial in it, past and future.</td></tr>
+          <tr><td>Storage</td><td><code>{DataRoot}\certs</code>: each certificate as PKCS#12 encrypted with machine-scope DPAPI, <code>index.json</code> (current, next, authority) and <code>issued.json</code> (<code>{ enrollments, certificates }</code>: enrollment id, subject, host name, authority, created, revoked, reason; serial, subject, expiry, issue time, enrollment, revoked, superseded-by; a bare list from before enrollments is read as certificates no enrollment accepts). The directory gets the Data Protection key directory's access list. A lock file serialises the service and the elevated commands; a store that was never prepared fails at once, and only a sharing violation is waited on, for up to thirty seconds.</td></tr>
+          <tr><td>Self-trust</td><td><code>ServerSelfTrust</code>, after every convergence of <code>ServerCertificateManager</code>: the current and next certificates go into <code>LocalMachine\Root</code> (<code>DevConduit:Server:TrustStore</code>; <code>None</code> turns it off), through the same <code>RootStoreTrust</code> a workstation uses, with its own record, <code>{DataRoot}\certs\root-store.json</code>. Each must pass <code>ServerCertificateRules</code> for the host name. Recorded certificates for any other host name, and expired or replaced ones, are removed; nothing unrecorded is ever touched. The service, as LocalSystem, can write the store; an unelevated console run logs one warning and carries on. <code>certs untrust</code> (elevated, or through <code>service-admin untrust</code>) removes everything recorded; an MSI uninstall cannot, so they otherwise stay until they expire.</td></tr>
+          <tr><td>Rotation</td><td>Checked on start and every twelve hours with an injected clock. Under 60 days left, the next certificate is issued and published beside the current one. Under 30 days, or outside its validity, the server switches to it. A host name change issues a new certificate and a new client authority at once and logs that clients must re-import.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3><code>/cert</code> and mutual TLS</h3>
+
+      <p>
+        <code>GET /cert</code> answers <code>{ hostname, serverCertificates: [ { der, notBefore, notAfter, thumbprint } ], clientCertificate: { notAfter, serial, renewAfter } }</code>;
+        <code>POST /cert/renew</code> takes <code>{ csr }</code>, a PKCS#10 request for a new P-256 key
+        under the enrollment's subject, and answers the new certificate. Both are mapped
+        only in server mode with the managed endpoint, outside Entra sign-in, outside the
+        <code>/api</code> group, the routed capture and any listing, behind a per-address fixed-window
+        rate limit, and log almost nothing.
+      </p>
+
+      <p>
+        The HTTPS endpoint uses <code>ClientCertificateMode.DelayCertificate</code>: the handshake
+        never requests a client certificate, so a browser opening the console is never prompted.
+        The <code>/cert</code> handler calls <code>GetClientCertificateAsync()</code>, which asks for
+        it then — TLS 1.3 post-handshake authentication or TLS 1.2 renegotiation, both HTTP/1.1
+        only — and the renewal reads its body first, since renegotiation cannot start with request
+        data in flight. Kestrel's own chain check is switched off; <code>ClientCertificateValidator</code>
+        builds an <code>X509Chain</code> with <code>CustomRootTrust</code> holding only the client
+        authority, requires client authentication and the validity period, reads the enrollment
+        from the subject, and requires the serial to be in <code>issued.json</code> under that
+        enrollment, which must not be revoked. Anything else is a bare <code>401</code> or
+        <code>403</code>.
+      </p>
+
+      <p>
+        A renewal is checked again inside <code>ServerCertificateAuthority.Renew</code>, under the
+        store's lock: the presented certificate must still be accepted (<code>403</code>), have
+        fewer than 60 days left by <code>ClientCertificateRenewal.IsDue</code>, the rule the client
+        uses (<code>409</code>), and the request must name exactly the enrollment's subject
+        (<code>400</code>). The new certificate joins the enrollment; the presented one is marked
+        superseded and stays valid, for <code>GET /cert</code> and for another renewal in its own
+        window, until it expires. Several users of one workstation renew from the same machine
+        identity, so one certificate may legitimately renew more than once; revoking the
+        enrollment (<code>certs revoke &lt;serial&gt;</code> or <code>certs revoke --enrollment &lt;id&gt;</code>)
+        is what ends them all. <code>certs list</code> groups by enrollment, each with its latest
+        certificate.
+      </p>
+
+      <h3>Export and import</h3>
+
+      <p>
+        <code>export</code> (elevated, or the helper's <code>service-admin export</code>) checks the
+        output path first — a <code>.conduit</code> name in an existing folder, not a folder or
+        a link — then converges the certificates, creates an enrollment and its client certificate,
+        and writes
+        <code>{ format: "dev-conduit/1", hostname, address, port, remote, tenantId, clientId, routes, serverCertificates, clientCertificate, exportedAt }</code>
+        (an import also accepts <code>poc-devproxy/1</code>, the same schema in a <code>.proxyconfig</code>
+        file exported by POC.DevProxy)
+        with an access list of the exporting account and Administrators, through a temporary file
+        in the target folder moved into place. A write that fails revokes the enrollment it just
+        created. The tray's <code>ClientConfigExportPlan</code> refuses before the elevation prompt
+        when the host name or either Entra id is missing or a placeholder. The client certificate
+        travels with its private key, so the file is a secret — but one with narrow reach: it
+        authenticates only to <code>/cert</code>, which hands out public certificates and renews
+        within the last 60 days of a certificate, in its enrollment. <code>/route</code> and the
+        console still need Entra ID.
+      </p>
+
+      <p>
+        <code>import</code> validates the file strictly before changing anything, then, idempotently:
+        a managed hosts line (<code># Dev.Conduit</code>) when the address is an IP; the server
+        certificates in <code>LocalMachine\Root</code>, recorded so that only certificates this app
+        added are ever removed; the same certificates pinned in the machine layer,
+        <code>%ProgramData%\Proxylayer\Dev.Conduit\client\&lt;hostname&gt;\trust.json</code>, with
+        <code>identity.pfx</code> (machine-scope DPAPI) beside it, in a folder Administrators and
+        SYSTEM control and Users only read; and the remote and its routes in the machine settings
+        file, where a re-import changes only the keys it manages (endpoint, the remote's own Entra
+        ids, routes) and keeps everything else on the remote. The pure parts — the document and
+        its validation, the hosts-file text edit, the settings merge, pin merging, the rotation
+        decision — are kept apart from the I/O. Nothing in it depends on an interactive user, so
+        the MSI runs the same <code>import &lt;file&gt; --machine</code> as LocalSystem during a
+        Workstation install given <code>CONDUITCONFIG</code>.
+      </p>
+
+      <p>
+        The hosts file is edited byte for byte (<code>HostsFile</code>, <code>HostsFileText</code>):
+        it is read as bytes, a UTF-8 byte order mark is kept aside, and the rest is decoded as
+        ISO-8859-1 so every byte maps to one character and back; each line keeps its own CRLF or LF
+        ending, the managed line takes the file's dominant ending and is ASCII only, and whether
+        the file ended with a line ending is kept, so adding and removing the line restores the
+        original bytes. The file is replaced through <code>File.Replace</code>, which keeps its
+        access list, with retries while another process holds it.
+      </p>
+
+      <p>
+        <code>service-admin forget &lt;hostname&gt;</code> is the reverse
+        (<code>ImportedServerRemover</code>): the remote whose endpoint names the host, the routes
+        naming that remote and the routes its import added
+        (<code>ImportedServerSettingsRemoval</code>, pure, checked against
+        <code>ManagedSettingKeys.Imported</code>), the certificates the root-store record says this
+        app added for the host, the managed hosts line, the machine-layer folder (files deleted one
+        by one, no link followed) and the import record. The tray's Servers page then deletes the
+        current user's layer for the host (<code>ClientTrustLayers.ForgetUser</code>) and drops the
+        user file's routes that still point at the server (<code>UserRoutesCleanup</code>).
+        <code>trust</code> and <code>forget</code> lower-case their host name, then require
+        <code>IsAcceptedHostname</code>.
+      </p>
+
+      <p>
+        A server can seed its own settings from another server's export:
+        <code>import &lt;file&gt; --seed-server</code>, the Server page's Copy settings from
+        .conduit..., and the helper's <code>service-admin seed &lt;transfer&gt;</code>. The file is
+        validated as strictly as an import; <code>ServerSeedSettings</code> (pure) turns it into a
+        change of <code>AzureAd:TenantId</code>, <code>AzureAd:ClientId</code> and
+        <code>DevConduit:Routes</code> (name to target, no remote, replacing the routes there),
+        held to <code>ManagedSettingKeys.Seed</code>. The host name, port, client address, hosts
+        file, pins, client identity and Windows trust are not touched, and the file's certificates
+        are ignored. The managed identity is not in the file.
+      </p>
+
+      <h3>Trust on the client: a machine layer and a user overlay</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 14%">Layer</th><th style="width: 30%">Where, and who writes it</th><th>Holds, and how it is protected</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Machine</td><td><code>%ProgramData%\Proxylayer\Dev.Conduit\client\&lt;hostname&gt;\</code>; import, <code>service-admin trust</code> and <code>forget</code>, elevated or SYSTEM</td><td><code>trust.json</code>, the imported pins and those <code>trust</code> added; <code>identity.pfx</code>, the imported client identity or <code>trust</code>'s renewal of it, machine-scope DPAPI. Administrators and SYSTEM full control, Users read, protected; <code>trust</code> and the import put that list back on a folder an earlier build left broader (<code>ClientTrustFolder.IsRestricted</code>, <code>Tighten</code>). Users read the identity by design: every user's unelevated sync authenticates with it, and its power is only <code>/cert</code>'s, revocable by enrollment.</td></tr>
+          <tr><td>User</td><td><code>%LOCALAPPDATA%\Proxylayer\Dev.Conduit\client\&lt;hostname&gt;\</code>; that user's unelevated sync</td><td><code>trust.json</code>, pins learned from <code>/cert</code>; <code>identity.pfx</code>, the renewed identity, user-scope DPAPI. The profile's own access list, checked on creation (<code>ClientTrustFolder.IsPrivateTo</code>) and replaced by one for the user, SYSTEM and Administrators if it would let anyone else read.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        <code>ClientTrustLayers</code> gives a user's relay the effective view: pins are the union
+        of both layers (<code>PinnedTrust.Union</code>), read by <code>ClientTrustStore</code> with
+        one file-time check per layer; the identity is the user's renewal while it is valid and of
+        the machine identity's enrollment, else the machine's, and there is none without the
+        machine's. The relay client accepts a remote's certificate when Windows trusts it, or when
+        its thumbprint is in the effective pins, it is inside its validity period and it names the
+        host. A host nothing was imported for is validated by Windows alone. A hosted service in
+        local mode (<code>ClientCertificateSync</code>) calls <code>/cert</code> on start, every
+        twelve hours and on request with the effective identity, merges new server certificates
+        into the user layer and drops expired ones there, renews the client certificate in its last
+        60 days into the user layer, never writes the machine layer, and puts the effective view
+        on <code>ClientTrustStatusBoard</code>, flagging a pinned certificate missing from
+        <code>LocalMachine\Root</code> (<code>RootStoreUpdateNeeded</code>) and a machine identity
+        in its last 60 days (<code>MachineIdentityRenewalDue</code>, from
+        <code>ClientTrustLayers.MachineIdentityRenewalDue</code>, which reads the machine layer
+        unelevated). <code>ClientTrustStatus.UpdateNeeded</code> is either one: what only an
+        administrator can settle.
+      </p>
+
+      <p>
+        <code>service-admin trust &lt;hostname&gt;</code> (<code>MachineTrustRefresh</code>) must not
+        take its certificates from the user layer, which its user controls. It builds
+        <code>ClientTrustLayers.MachineOnly</code>, calls <code>GET /cert</code> itself with the
+        machine identity at the host name and the port of the machine settings file's remote,
+        accepting the server only by Windows trust or the machine pins, applies
+        <code>ServerCertificateRules</code> to each published certificate, adds the new ones to the
+        machine pins and to <code>LocalMachine\Root</code>, and removes the expired ones this app
+        added. Then, when <code>ClientCertificateRenewal.IsDue</code> holds for the machine
+        identity, it generates a new P-256 key, sends a request with the same subject to
+        <code>POST /cert/renew</code> as the machine identity, checks the answer (same subject,
+        client authentication, its own key, a later expiry) and writes it to the machine layer with
+        machine-scope DPAPI, atomically. A <code>409</code> (not due by the server's clock), a
+        <code>403</code> or any other failure keeps the current identity: the result says
+        <code>MachineIdentityRenewal.Failed</code>, the pins and <code>LocalMachine\Root</code>
+        stand, and the helper exits with <code>IdentityRenewalFailed</code> (20). The calls to
+        <code>/cert</code> and <code>/cert/renew</code> are delegates, so the whole of it is tested
+        without elevation against a scratch store.
+      </p>
+
+      <p>
+        So the workstation needs an administrator about once a year, and per-user renewals stay
+        automatic. Each user's sync renews only into that user's layer; the machine identity, which
+        new users and <code>service-admin trust</code> start from, renews only elevated. The tray
+        asks for one admin prompt when Windows trust lags or the machine identity enters its
+        renewal window, and that one run of <code>service-admin trust</code> keeps both current.
+        Missed until the machine identity expires, the workstation needs a new
+        <code>.conduit</code>.
+      </p>
+
+      <div class="callout warn">
+        <strong>This is not the shipped-CA shortcut of 03.2.</strong> Nothing here can mint a
+        certificate a client trusts for any host but the server's own name: the server certificate
+        is an end-entity certificate, and the client authority is trusted by the server alone, for
+        <code>/cert</code> alone.
+      </div>
+    </section>
+
+    <section id="storage">
+      <h2>03.1 &nbsp; Storage model</h2>
+
+      <p>
+        Everything is JSON files on local disk under the resolved data root, which defaults to
+        <code>%LOCALAPPDATA%\Proxylayer\Dev.Conduit</code>. Nothing is sent anywhere else; deleting the
+        folder wipes the tool's state.
+      </p>
+
+<pre><code>{DataRoot}\
+  users\
+    {userId}\
+      headers.json              saved header sets, one JSON array
+      history\
+        index.json              newest-first summaries, capped at MaxHistoryEntries
+        {entryId}.json          the complete console request and response
+      routed\
+        index.json              newest-first summaries, capped at MaxRoutedHistoryEntries
+        {entryId}.json          the complete forwarded exchange
+  msal\
+    devconduit.msal.cache         local mode only, DPAPI-protected on Windows
+  keys\
+    key-{id}.xml                the Data Protection key ring, both modes</code></pre>
+
+      <h3>The Data Protection key ring</h3>
+
+      <p>
+        The keys that sign and encrypt the session cookie and the OpenID Connect correlation
+        state are configured explicitly by <code>DataProtectionSetup</code>, in both modes:
+        persisted to <code>{DataRoot}\keys</code>, under the fixed application name
+        <code>Dev.Conduit</code>, and on Windows encrypted with machine-scope DPAPI. The
+        framework default kept them in the running account's profile under user-scope DPAPI,
+        keyed to the content root, so a password reset, a different service account or a zip
+        extracted to a new folder each made the ring unreadable: startup logged pages of
+        <code>CryptographicException</code> and every session was invalidated. The access-list
+        consequence of machine scope is covered in <a href="#security">03.2</a>.
+      </p>
+
+      <h3>The identity that becomes a path segment</h3>
+
+      <p>
+        <code>{userId}</code> is the <code>oid</code> claim of the signed-in principal — in local
+        mode, the fixed pseudo-user <code>local</code>. It is validated twice before it can reach
+        the filesystem: <code>UserContext</code> refuses to construct if the claim is not a safe
+        segment, and <code>UserStoragePaths</code> validates again on every path it builds.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 34%">Check</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>\A[A-Za-z0-9._-]{1,128}\z</code></td>
+            <td>
+              Anchored with <code>\A</code> and <code>\z</code>, not <code>^</code> and
+              <code>$</code>. <code>$</code> also matches immediately before a trailing line feed,
+              which would let <code>abc</code> and <code>abc\n</code> both pass and resolve to two
+              different directories.
+            </td>
+          </tr>
+          <tr><td>Not <code>.</code> or <code>..</code></td><td>Directory traversal out of the data root.</td></tr>
+          <tr>
+            <td>Not <code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code>, <code>COM1-9</code>, <code>LPT1-9</code> — with or without an extension</td>
+            <td>Reserved on Windows however they are spelled. Opening <code>CON.txt</code> opens the console device, not a file.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Two stores, two caps, two locks</h3>
+
+      <p>
+        Console history and routed traffic use the same machinery — <code>JsonEntryLog</code>, an
+        index of summaries plus one file per entry — but are wired with separate directories,
+        separate caps and separate write gates (<code>UserFileLocks</code> keys on
+        <code>{userId}</code> plus a scope name). Forwarded traffic therefore <em>cannot</em> evict
+        console history no matter how much of it arrives, and a burst of routed writes does not
+        serialise behind a console write.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 24%">Store</th><th style="width: 24%">Entry cap</th><th style="width: 26%">Body cap</th><th>Lock scope</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>history\</code></td><td><code>MaxHistoryEntries</code> — 500</td><td><code>MaxStoredBodyBytes</code> — 1 MiB</td><td><code>console</code></td></tr>
+          <tr><td><code>routed\</code></td><td><code>MaxRoutedHistoryEntries</code> — 5000</td><td><code>MaxRoutedStoredBodyBytes</code> — 2 MiB</td><td><code>routed</code></td></tr>
+          <tr><td><code>headers.json</code></td><td>uncapped</td><td>n/a</td><td><code>console</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        On append, the entry file is written first, its summary is inserted at the head of the
+        index, the index is rewritten, and only then are the pruned entries' files deleted — so a
+        crash mid-append leaves an orphaned file, never a dangling index row. An index that will
+        not deserialise is logged and rebuilt empty rather than failing every read. Truncating a
+        stored body is UTF-8-aware: the cut is walked back off any continuation byte so a
+        multi-byte character is never split.
+      </p>
+
+      <h3>Atomic writes</h3>
+
+      <p>
+        <code>AtomicJsonFile.WriteAsync</code> serialises to <code>{path}.tmp</code>, flushes, then
+        moves it over the target with <code>overwrite: true</code>. A reader never observes a
+        half-written file, and a crash cannot leave one behind. Every write for a given user and
+        scope is serialised on that user's semaphore, so two concurrent requests cannot interleave
+        read-modify-write cycles on the same index.
+      </p>
+
+      <h3>Capped tee capture</h3>
+
+      <p>
+        <code>CappedBuffer</code> retains the first <em>N</em> bytes handed to it and counts the
+        rest: once the cap is reached it stops retaining, sets a truncation flag, and keeps
+        counting. <code>CapturingReadStream</code> wraps the inbound body and appends what it sees
+        as the outbound call consumes it; the response copy loop appends each chunk after it is
+        written to the caller.
+      </p>
+
+      <div class="callout good">
+        <strong>The invariant.</strong> Capture is strictly an observer. It can be truncated, it
+        can be dropped from the write queue, and it can fail entirely — none of which changes a
+        single byte of what the caller receives, and none of which can fail the caller's request.
+        <code>CapturingReadStream</code> does not even dispose the stream it wraps: that stream
+        belongs to the request pipeline, not to the observer.
+      </div>
+
+      <h3>Secret redaction</h3>
+
+      <p>
+        A header is secret when the user flags it in the console or when its name appears in
+        <code>DevConduit:SecretHeaderNames</code>. The invariant has two halves, and they point in
+        opposite directions on purpose:
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Location</th><th style="width: 22%">Secret values</th><th>Reason</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Saved header sets (<code>headers.json</code>)</td>
+            <td><strong>Stored verbatim</strong></td>
+            <td>Storing them is what makes a set reusable. A header set that forgets its token is not a header set. They render masked in the console, with a reveal toggle.</td>
+          </tr>
+          <tr>
+            <td>Console history, routed capture</td>
+            <td><strong><code>***redacted***</code></strong></td>
+            <td>A history file is a record of what happened, not a credential store. No live token ever lands in one.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        Default secret names: <code>Authorization</code>, <code>Cookie</code>,
+        <code>Set-Cookie</code>, <code>Proxy-Authorization</code>, <code>X-Api-Key</code>,
+        <code>api-key</code>, <code>Ocp-Apim-Subscription-Key</code>,
+        <code>X-DevConduit-Upstream-Authorization</code>, <code>X-DevConduit-Local-Secret</code>.
+      </p>
+
+      <div class="callout warn">
+        <strong>Consequence when replaying.</strong> Loading a history entry back into the composer
+        gives you <code>***redacted***</code> where the credential was. A replay will fail with
+        <code>401</code> until you re-enter the value or apply a saved header set. This is
+        working as designed, not a bug in the replay path.
+      </div>
+    </section>
+
+    <section id="security">
+      <h2>03.2 &nbsp; Security posture</h2>
+
+      <p>
+        These are trade-offs, stated as trade-offs. Read this section before running the tool
+        anywhere but your own machine.
+      </p>
+
+      <h3>What the tool is</h3>
+
+      <div class="callout warn">
+        <strong>This is an authenticated arbitrary-request relay, by design.</strong> It executes
+        outbound HTTP requests of the caller's choosing, from this machine, with this machine's
+        network access. That is the purpose and also the principal risk: anyone who can reach it
+        and authenticate can reach whatever it can reach — internal services and management
+        interfaces among them. Authentication narrows <em>who</em>; it does not narrow
+        <em>where</em>. There is no egress allow list beyond <code>AliasesOnly</code>, which
+        restricts <code>/route</code> only and does nothing to the console. The one fixed
+        exception is the deny list below, which keeps the cloud metadata endpoints out of reach.
+      </div>
+
+      <p>
+        In server mode the mitigation is the bind address. With no Kestrel endpoint and no
+        <code>urls</code> configured it listens on <code>http://localhost:8091</code>; exposing it
+        off-box takes an explicit endpoint, and any plain <code>http</code> listener beyond loopback
+        logs a prominent warning, because tokens and proxied traffic would cross the network
+        unencrypted. In local mode there is no such option: a non-loopback bind is a fatal startup
+        error, and configured Kestrel endpoints are ignored.
+      </p>
+
+      <h3>The cloud metadata egress block</h3>
+
+      <div class="callout warn">
+        <strong>The VM's managed identity is one request away.</strong> The UAMI that backs the
+        app registration's credential is attached to the VM, and any process on the VM can ask
+        the instance metadata service for its token at
+        <code>http://169.254.169.254/metadata/identity/oauth2/token</code>. Dev.Conduit is a process
+        on the VM that sends requests of the caller's choosing. Without a block, any signed-in
+        user could compose that request in the console and read the app's credential out of the
+        response.
+      </div>
+
+      <p>
+        <code>EgressNetworkGuard</code> therefore refuses connections to the networks in
+        <code>DevConduit:BlockedEgressNetworks</code>. The defaults are <code>169.254.0.0/16</code>
+        (IPv4 link-local, including the metadata service), <code>168.63.129.16/32</code> (the
+        Azure WireServer) and <code>fe80::/10</code> (IPv6 link-local). The configuration binder
+        appends configured entries to the defaults, as it does for
+        <code>SecretHeaderNames</code>, so configuration can add networks but never remove one.
+        Malformed entries are logged at startup and ignored.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 24%">Concern</th><th>Behaviour</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>When it is checked</td><td>At connect time, on the resolved address, in the outbound handler's <code>ConnectCallback</code>. A hostname that resolves into a blocked network, a DNS rebind, and a redirect to a blocked address are all caught, because each ends in a connect.</td></tr>
+          <tr><td>Multiple addresses</td><td>A host is refused if <em>any</em> resolved address is blocked, not only the one that would have been tried first.</td></tr>
+          <tr><td>IPv4-mapped IPv6</td><td>Normalised, so <code>::ffff:169.254.169.254</code> is caught as <code>169.254.169.254</code>.</td></tr>
+          <tr><td>Coverage</td><td>The console's outbound clients and <code>/route</code> upstream calls. Not local mode's relay to the remote Dev.Conduit, which is not an upstream.</td></tr>
+          <tr><td>Console result</td><td>The normal transport-failure envelope, <code>errorKind: "Blocked"</code>, with a message naming the host, the address and the setting. The console shows <code>BLOCKED</code>.</td></tr>
+          <tr><td><code>/route</code> result</td><td><code>400</code>, <code>errorKind: "Blocked"</code>. A request Dev.Conduit will not route, like the <code>aliases_only</code> refusal; <code>502</code> stays reserved for an unreachable upstream.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        <strong>The target allow-list.</strong> <code>DevConduit:Route:AllowedTargets</code>
+        (<code>TargetAllowList</code>, entries parsed by <code>AllowedTarget</code>) narrows what a
+        server may call at all, beyond the blocked networks. Local mode always sends
+        <code>X-DevConduit-Target</code>, so <code>AliasesOnly</code> cannot be used there, and
+        without a list any signed-in user can make the server call any host it reaches. Empty, it
+        allows everything not blocked and startup warns. Otherwise it is checked twice: on the
+        target a request names (<code>UpstreamRouteEgress.Refuse</code>, a <code>403</code> with
+        <code>errorKind: "target_not_allowed"</code>), and in the same <code>ConnectCallback</code>
+        on the address dialled, after the blocked networks. A host name entry, or a route's
+        target, allows the name whatever it resolves to; otherwise every resolved address must
+        lie in a network entry, so a DNS answer cannot carry a name past a CIDR rule. The console
+        reports a refusal as <code>TargetNotAllowed</code>. Malformed entries are logged at
+        startup and ignored, and still count as a restriction.
+      </p>
+
+      <div class="callout warn">
+        <strong>An ambient proxy defeats the check.</strong> With <code>HTTP_PROXY</code> set in
+        the server's environment, the connection Dev.Conduit opens is to the proxy, so the check
+        sees the proxy's address rather than the target's. Keep it unset for server mode on the
+        VM, or block the same networks at the proxy.
+      </div>
+
+      <h3>The local hop is deliberately unauthenticated</h3>
+
+      <div class="callout">
+        <strong>The trade being made.</strong> Requiring a credential on the local hop would put a
+        token back into the application that local mode exists to keep it out of — and that
+        credential would have to be provisioned into the Angular dev server, the Java client and
+        the legacy executable, which is precisely the code change the design is buying its way out
+        of. So the local hop authenticates nothing, and loopback is the boundary. Every process on
+        the workstation can reach it; nothing off the workstation can.
+      </div>
+
+      <p>
+        <code>DevConduit:Local:SharedSecret</code> narrows that to the processes a developer chose
+        to tell, via <code>X-DevConduit-Local-Secret</code>, compared in fixed time. It applies to
+        <code>/route</code> and to the forward proxy — the paths that carry application traffic —
+        and deliberately <em>not</em> to the console UI or the <code>/api</code> surface, which
+        stay reachable so the tool remains usable; a browser cannot attach a custom header to its
+        own navigation. Unset, which is the default, means loopback is the only control.
+      </p>
+
+      <h3>No TLS interception, and no certificate authority</h3>
+
+      <p>
+        A <code>CONNECT</code> to a host matching a target rule is refused with <code>502</code>
+        and a body that teaches rather than merely refuses. Rewriting an HTTPS request would mean
+        terminating TLS on the workstation and presenting a certificate for a host Dev.Conduit does
+        not own. Minting that certificate is the easy part; getting it <em>trusted</em> is the part
+        that does not scale and carries the risk.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Runtime</th><th>What installing trust actually means</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Windows</td><td>Adding to the machine or user root store, which prompts, and which many managed workstations forbid outright</td></tr>
+          <tr><td>Node.js</td><td><code>NODE_EXTRA_CA_CERTS</code> pointing at the file, set for every process that matters</td></tr>
+          <tr><td>Java</td><td><code>keytool -importcert</code> into the JDK's <code>cacerts</code>, once per JDK installation</td></tr>
+          <tr><td>Firefox, Thunderbird</td><td>Their own NSS database, separate from the operating system's</td></tr>
+          <tr><td>Containers, CI agents</td><td>Whatever the base image does, repeated per image</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        Every one of those prompts is a security control working correctly. A tool that talks a
+        developer through disabling five of them has taught a habit worth more to an attacker than
+        anything the tool provides.
+      </p>
+
+      <div class="callout warn">
+        <strong>The shipped-CA shortcut is a genuine compromise vector.</strong> Generating one
+        authority, shipping its private key with the tool and having everyone install it means
+        every developer holds a key that mints certificates for <em>any</em> domain, trusted on
+        <em>every other</em> developer's machine. One leaked repository or one laptop off a desk
+        and the blast radius is the whole team's TLS. That trade is not made on a user's behalf.
+      </div>
+
+      <p>
+        Per-machine generation — a CA created locally, never leaving the machine, installed once by
+        an explicit command the developer runs knowingly — avoids the shared-key problem entirely
+        and remains a reasonable future option. It is deliberately not built, because the
+        reverse-proxy form already covers the same hosts without asking anyone to add a root of
+        trust. Plain <code>http://</code> requests to a matched host through the forward proxy are
+        relayed normally; only <code>CONNECT</code> is refused.
+      </p>
+
+      <h3>Path safety on the Entra object id</h3>
+
+      <p>
+        The <code>oid</code> claim arrives from an external identity provider and is used as a
+        directory name. It is validated against an anchored allow-list pattern and a
+        reserved-device-name check before it can touch the filesystem, and construction of
+        <code>UserContext</code> fails outright if it does not pass. The anchoring detail matters:
+        using <code>$</code> instead of <code>\z</code> would let a trailing newline through and
+        resolve two distinct principals to two distinct directories that look identical in a
+        listing. Details in <a href="#storage">03.1</a>.
+      </p>
+
+      <h3>Other controls</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 24%">Control</th><th>Behaviour</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Global authorization</td><td>A fallback policy covers every endpoint and every static asset in server mode. Only <code>/health</code> is anonymous. In local mode the fallback policy is satisfied by the fixed <code>local</code> principal.</td></tr>
+          <tr><td>CSRF</td><td><code>X-DevConduit-Client: 1</code> required on every <code>/api</code> call, plus a <code>SameSite=Lax</code>, <code>HttpOnly</code> session cookie.</td></tr>
+          <tr><td>Session replay to upstreams</td><td>Dev.Conduit's own cookies are stripped from every forwarded request in both modes, with no setting that disables it. Forwarding <code>DevConduit.Auth</code> would hand an upstream a replayable session that can execute arbitrary outbound requests from the Dev.Conduit host.</td></tr>
+          <tr><td>Data Protection keys</td><td>Machine-scope DPAPI lets any local account decrypt a key file it can read, so <code>KeyDirectoryAccess</code> limits <code>{DataRoot}\keys</code> to <code>SYSTEM</code>, <code>BUILTIN\Administrators</code> and the process identity, with inheritance off: a new directory is created with that list, an existing broader one is tightened at startup, and a failure to do so is a logged warning, not a fatal error. Startup logs the directory and the protection in use.</td></tr>
+          <tr><td>Client certificates</td><td>Issued per export into an enrollment, accepted by <code>/cert</code> only, renewed only in their last 60 days and only for the enrollment's subject, and revoked by enrollment, so a leaked <code>.conduit</code> cannot mint independent serials. A host name change replaces the client authority and revokes its enrollments.</td></tr>
+          <tr><td>Workstation trust</td><td>The machine layer under <code>%ProgramData%</code> is written only elevated or as SYSTEM and only read by Users; each user's renewals and learned pins live in that user's private <code>%LOCALAPPDATA%</code> layer, user-scope DPAPI. <code>service-admin trust</code> never reads a user layer: it asks the server itself with the machine identity and checks every certificate against <code>ServerCertificateRules</code> before it reaches <code>LocalMachine\Root</code>.</td></tr>
+          <tr><td>Rendering</td><td>Untrusted response bodies are written with <code>textContent</code>, never as HTML.</td></tr>
+          <tr><td>TLS validation</td><td>On, unless a request opts out. The opt-out can be removed entirely with <code>DevConduit:AllowInsecureTlsOptIn = false</code>, and every use of it is logged at warning level with the target host.</td></tr>
+          <tr><td>Transport</td><td>The listener is plain <code>http</code>, so the session cookie is not encrypted on the wire. Acceptable for loopback on a developer machine and for nothing else.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="configuration">
+      <h2>03.3 &nbsp; Configuration reference</h2>
+
+      <h3>Layering, and the settings files that survive an update</h3>
+
+      <p>
+        An update extracts a new zip over the folder and so replaces every
+        <code>appsettings*.json</code>. Settings for one machine or one person live in two
+        optional files that no update touches. <code>SettingsFiles</code> owns their paths and
+        inserts them directly after <code>appsettings.{Environment}.json</code>, so the order a
+        launch reads, each source winning over the ones before it, is:
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 6%">#</th><th style="width: 40%">Source</th><th>Read by</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td><code>appsettings.json</code></td><td>every launch</td></tr>
+          <tr><td>2</td><td><code>appsettings.{Environment}.json</code></td><td>every launch</td></tr>
+          <tr><td>3</td><td><code>%ProgramData%\Proxylayer\Dev.Conduit\settings.json</code>, machine settings</td><td>every launch: console, tray and service</td></tr>
+          <tr><td>4</td><td><code>%LOCALAPPDATA%\Proxylayer\Dev.Conduit\settings.json</code>, user settings</td><td>console and tray; never the service, which runs as LocalSystem for every user</td></tr>
+          <tr><td>5</td><td>user secrets</td><td><code>Development</code> only</td></tr>
+          <tr><td>6</td><td>environment variables, then the command line</td><td>every launch; the service passes no command line</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        Both files are optional; an absent or blank one adds nothing, and one that is not a JSON
+        object stops startup with a message naming it. The tray's setup window is the only
+        writer the tool provides, and it never edits an <code>appsettings</code> file.
+        <code>SettingsChangeSet</code> describes a change as configuration paths to set (a value,
+        or a whole section) and paths to remove; <code>SettingsFileWriter</code> applies one to a
+        <code>JsonNode</code> document, leaving every other key as it was, and replaces the file
+        through a temporary file beside it.
+      </p>
+
+      <div class="callout warn">
+        <strong>The machine file is checked before it is read.</strong> The service reads it as
+        LocalSystem, and ordinary users can create files in a folder under
+        <code>%ProgramData%</code>, so a file planted before an administrator first saved one
+        would reconfigure the service. <code>MachineSettingsAccess</code> refuses, in every
+        launch, a file owned by anyone but Administrators, SYSTEM or TrustedInstaller, or with an
+        allow entry granting anyone else write access. The elevated helper creates the file with
+        a protected access list: Administrators and SYSTEM full control, Users read.
+      </div>
+
+      <p>
+        Configuration merges sources key by key and has no way to delete a key a lower source
+        defines. The window therefore writes <code>DevConduit:Remotes</code> and
+        <code>DevConduit:Routes</code> as whole sections holding only the entries that differ from
+        the layers below; an inherited entry is switched off with <code>"Enabled": false</code>,
+        which <code>RoutingConfigurationParser</code> treats as absent. Lists merge by index, so a
+        list written over a longer inherited one is padded with blank entries, which every reader
+        of those lists drops. A value equal to the inherited one is removed rather than written,
+        so a later <code>appsettings.json</code> still reaches it.
+      </p>
+
+      <h3><code>DevConduit</code></h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 28%">Setting</th><th style="width: 20%">Default</th><th>Controls</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Mode</code></td><td><code>Server</code></td><td>Which role the process plays. <code>--mode server|local</code> overrides it, and the resolved value is written back into configuration so bound options agree.</td></tr>
+          <tr><td><code>DataRoot</code></td><td><code>%LOCALAPPDATA%\Proxylayer\Dev.Conduit</code>; <code>%ProgramData%\Proxylayer\Dev.Conduit</code> on a server</td><td>Root of the JSON store, keys and certificates. Environment variables are expanded. The server default applies in server mode when running as the service or while the service is installed (<code>DataRootDefault</code>). Falls back to <code>{AppContext.BaseDirectory}\data\Proxylayer\Dev.Conduit</code> when the local-app-data folder cannot be resolved.</td></tr>
+          <tr><td><code>MaxHistoryEntries</code></td><td><code>500</code></td><td>Console history entries retained per user. The oldest are pruned and their files deleted on write.</td></tr>
+          <tr><td><code>MaxStoredBodyBytes</code></td><td><code>1048576</code></td><td>Bytes of each console request/response body persisted. Truncation is flagged on the entry. A floor of 1024 is applied.</td></tr>
+          <tr><td><code>MaxRoutedHistoryEntries</code></td><td><code>5000</code></td><td>Routed entries retained per user, in their own store.</td></tr>
+          <tr><td><code>MaxRoutedStoredBodyBytes</code></td><td><code>2097152</code></td><td>Bytes of each routed body retained by the capped tee.</td></tr>
+          <tr><td><code>AllowInsecureTlsOptIn</code></td><td><code>true</code></td><td>When false, the per-request <em>allow invalid certificate</em> option is refused with an <code>InvalidRequest</code> error.</td></tr>
+          <tr><td><code>SecretHeaderNames</code></td><td>9 names, listed in <a href="#storage">03.1</a></td><td>Header names always treated as secret regardless of the per-header flag: redacted in history and routed capture, retained in saved header sets.</td></tr>
+          <tr><td><code>BlockedEgressNetworks</code></td><td><code>169.254.0.0/16</code>, <code>168.63.129.16/32</code>, <code>fe80::/10</code></td><td>CIDR networks outbound calls may never connect to, checked on the resolved address at connect time. Configured entries are appended to the defaults, never replace them; malformed ones are logged at startup and ignored. See <a href="#security">03.2</a>.</td></tr>
+          <tr><td><code>AllowedGroupIds</code></td><td><code>[]</code></td><td>Entra group object ids permitted in. Empty means any authenticated tenant user. Requires the groups claim on the app registration.</td></tr>
+          <tr><td><code>AllowedUserOids</code></td><td><code>[]</code></td><td>Entra user object ids permitted in. Empty means any authenticated tenant user. Needs no extra registration configuration.</td></tr>
+          <tr><td><code>Server:Hostname</code></td><td><code>""</code></td><td>Server mode. The name clients reach the server by; turns on the app-managed HTTPS endpoint, <code>/cert</code> and <code>export</code>. Blank for the service, or beside the installed service, means this computer's DNS name. See <a href="#certificates">02.4</a>.</td></tr>
+          <tr><td><code>Server:Port</code></td><td><code>8091</code></td><td>The managed HTTPS port, on every interface.</td></tr>
+          <tr><td><code>Server:ClientAddress</code></td><td><code>""</code></td><td>The address exports tell clients to map the host name to. <code>export --address</code> overrides it.</td></tr>
+          <tr><td><code>Server:TrustStore</code></td><td><code>LocalMachine\Root</code></td><td>Where the server trusts its own certificates; <code>None</code> leaves Windows trust alone, another <code>Location\Name</code> is for testing, <code>CurrentUser\Root</code> is refused.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="callout">
+        <strong>The listen address.</strong> With a host name (configured, or the computer's name for
+        the service and beside it), server mode adds <code>https://0.0.0.0:{Port}</code> with its app-managed certificate (<a href="#certificates">02.4</a>),
+        unless <code>Kestrel:Endpoints</code> is configured, which wins. Otherwise it listens where
+        <code>Kestrel:Endpoints</code> says, or failing that <code>urls</code> /
+        <code>ASPNETCORE_URLS</code>; with neither set it listens on
+        <code>http://localhost:8091</code>. The startup banner and the unconfigured-tenant notice
+        quote the same resolved URLs. The <code>DevConduit</code> section has no listen-address
+        settings; any it still carries are named in a startup warning and ignored. Local mode
+        ignores all of this and listens on the loopback address and port under
+        <code>DevConduit:Local</code>.
+      </div>
+
+      <h3><code>DevConduit:Routes</code> — read in both modes</h3>
+
+      <p>
+        Route name to upstream, the name being the <code>/route/{name}/…</code> alias segment.
+        Names are unique and case-insensitive. One remote and one route is the whole of it:
+      </p>
+
+<pre><code>"DevConduit": {
+  "Remotes": { "uat": "https://devconduit.example.internal:8091" },
+  "Routes": { "orders": "http://10.0.0.5:8080" }
+}</code></pre>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 28%">Form</th><th style="width: 30%">Example</th><th>Controls</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>String</td><td><code>"orders": "http://10.0.0.5:8080"</code></td><td>The upstream origin. Validated at startup; a malformed entry is logged and dropped, and a name containing a slash or backslash is rejected as not being a single path segment.</td></tr>
+          <tr><td>Object</td><td><code>"orders-prod": { "Target": "…", "Remote": "prod" }</code></td><td><code>Target</code> is the origin. <code>Remote</code> names the remote that carries it in local mode; without it the default remote does. Server mode ignores <code>Remote</code>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3><code>DevConduit:Route</code> — read in both modes</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 28%">Setting</th><th style="width: 20%">Default</th><th>Controls</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>AliasesOnly</code></td><td><code>false</code></td><td>When true, <code>X-DevConduit-Target</code> is refused and only aliases resolve. With no usable alias surviving validation, startup warns that <code>/route</code> will refuse everything.</td></tr>
+          <tr><td><code>ForwardCookies</code></td><td><code>false</code></td><td>Whether the caller's <code>Cookie</code> header reaches the next hop at all. Dev.Conduit's own cookies are stripped either way.</td></tr>
+          <tr><td><code>TimeoutSeconds</code></td><td><code>100</code></td><td>Per-request upstream timeout. A value of zero or less falls back to 100; anything above 600 is clamped to 600. Linked to the caller's own cancellation.</td></tr>
+          <tr><td><code>AllowedTargets</code></td><td><code>[]</code></td><td>Server mode. The hosts outbound calls may reach (<code>TargetAllowList</code>): host names, <code>*.</code> wildcards, IP addresses and CIDR networks, each with an optional <code>:port</code>. Every route's target is allowed besides. Empty allows any host not blocked, with a startup warning. See <a href="#security">03.2</a>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3><code>DevConduit:Remotes</code> and <code>DevConduit:DefaultRemote</code> — read only in local mode</h3>
+
+      <p>
+        Remote name (case-insensitive) to the Dev.Conduit instance local mode relays to; at least one
+        is required. The value is the endpoint itself, or an object. Several remotes look like
+        this:
+      </p>
+
+<pre><code>"DevConduit": {
+  "Remotes": {
+    "uat":  "https://devconduit.example.internal:8091",
+    "prod": { "Endpoint": "https://devconduit-prod.example.internal:8091",
+              "ClientId": "…", "Targets": [ "*.prod.internal" ] }
+  },
+  "DefaultRemote": "uat",
+  "Routes": {
+    "orders":      "http://10.0.0.5:8080",
+    "orders-prod": { "Target": "http://10.50.1.10:8080", "Remote": "prod" }
+  }
+}</code></pre>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 28%">Setting</th><th style="width: 22%">Default</th><th>Controls</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Endpoint</code></td><td><em>required</em></td><td>Base address of the remote Dev.Conduit; in the string form, the string itself. Must be an absolute <code>http</code>/<code>https</code> URI; only its authority is kept.</td></tr>
+          <tr><td><code>TenantId</code>, <code>ClientId</code></td><td><code>AzureAd:TenantId</code>, <code>AzureAd:ClientId</code></td><td>The app registration this machine signs in against for this remote; set only to differ from the server's. Missing values are a warning, not a fatal error: the host starts and each request relayed to that remote fails naming the settings.</td></tr>
+          <tr><td><code>Scopes</code></td><td><code>api://{ClientId}/DevConduit.Forward</code></td><td>Scopes requested for this remote, from its effective client id. Empty entries are ignored; an entirely empty array yields the default. An import whose <code>.conduit</code> names another scope writes <code>["api://{ClientId}/{scope}"]</code> here.</td></tr>
+          <tr><td><code>Targets</code></td><td><code>[]</code></td><td>Extra host rules the <em>forward proxy</em> relays to this remote rather than contacting directly. Every usable route origin is added as a <code>host:port</code> rule for its route's remote (the scheme's default port when the origin names none), unless an earlier rule for the same remote, or an earlier route, already covers it.</td></tr>
+          <tr><td><code>Enabled</code></td><td><code>true</code></td><td><code>false</code> leaves the remote out as if absent. Routes take the same key. It is how a settings file switches off an entry a lower file defines; an unreadable value leaves the entry in.</td></tr>
+          <tr><td><code>DevConduit:DefaultRemote</code></td><td>the only remote, when there is one</td><td>The remote for routes without <code>Remote</code> and for header-targeted <code>/route</code> requests nothing else claims. With several remotes and no default, a route without <code>Remote</code> is fatal and an unclaimed request gets <code>400 no_remote</code>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        <code>DevConduit:Route:Aliases</code>, <code>DevConduit:Local:RemoteEndpoint</code>,
+        <code>DevConduit:Local:Targets</code> and <code>DevConduit:Local:TenantId</code>,
+        <code>ClientId</code> and <code>Scopes</code> have been removed. Startup warns about each
+        one still present and names its replacement; nothing is migrated.
+      </p>
+
+      <h3><code>DevConduit:Local</code> — read only in local mode</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 28%">Setting</th><th style="width: 22%">Default</th><th>Controls</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Port</code></td><td><code>8092</code></td><td>Reverse proxy and console. Differs from 8091 so both modes can run on one machine. The only Kestrel listener in this mode; configured <code>Kestrel:Endpoints</code> are ignored.</td></tr>
+          <tr><td><code>BindAddress</code></td><td><code>127.0.0.1</code></td><td>Must be a loopback address, or the literal <code>localhost</code>. Anything else is a fatal startup error.</td></tr>
+          <tr><td><code>SharedSecret</code></td><td><code>""</code></td><td>When set, proxy ingress requires <code>X-DevConduit-Local-Secret</code>. Does not apply to the console or <code>/api</code>.</td></tr>
+          <tr><td><code>ForwardProxyEnabled</code></td><td><code>true</code></td><td>Whether the raw <code>HTTP_PROXY</code> listener runs at all.</td></tr>
+          <tr><td><code>ForwardProxyPort</code></td><td><code>8093</code></td><td>Port for that listener. Equal to <code>Port</code> is a fatal startup error.</td></tr>
+          <tr><td><code>CaptureEnabled</code></td><td><code>false</code></td><td>Whether local mode also records what it relays. Off because the remote already holds the authoritative record and capturing at both ends stores every body twice.</td></tr>
+          <tr><td><code>CacheDirectory</code></td><td><code>%LOCALAPPDATA%\Proxylayer\Dev.Conduit\msal</code></td><td>Where the encrypted MSAL token cache lives, shared by every remote's identity.</td></tr>
+          <tr><td><code>InteractiveFallback</code></td><td><code>true</code></td><td>When false, sign-in skips the browser entirely and goes straight to device code.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3><code>AzureAd</code></h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 28%">Setting</th><th style="width: 24%">Default</th><th>Controls</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Instance</code></td><td><code>https://login.microsoftonline.com/</code></td><td>Entra cloud instance. Microsoft.Identity.Web has no default and refuses to start without one, so server mode supplies this value when the key is absent.</td></tr>
+          <tr><td><code>TenantId</code></td><td>&mdash;</td><td>Directory (tenant) id: the users' tenant, and so the token issuer. A placeholder value puts server mode into the <code>503</code> notice state.</td></tr>
+          <tr><td><code>ClientId</code></td><td>&mdash;</td><td>Application (client) id of the multi-tenant registration in the server's tenant. Also determines the expected bearer audience, <code>api://&lt;client-id&gt;</code>.</td></tr>
+          <tr><td><code>ClientCredentials</code></td><td>&mdash;</td><td>The client credential the authorization code flow needs. On the VM, one <code>SignedAssertionFromManagedIdentity</code> entry naming the UAMI's client id — see <a href="#credential">02.3</a>. The first usable entry wins, ahead of <code>ClientSecret</code>. An entry's <code>TokenExchangeUrl</code> defaults to <code>api://AzureADTokenExchange</code>, the public-cloud audience.</td></tr>
+          <tr><td><code>ClientSecret</code></td><td><code>""</code></td><td>Fallback credential, for server mode off the VM where no managed identity exists. Keep it out of <code>appsettings.json</code> — see <a href="#operations">03.4</a>.</td></tr>
+          <tr><td><code>CallbackPath</code></td><td><code>/signin-oidc</code></td><td>Must match the Web redirect URI on the registration exactly. Optional; the default is the OpenID Connect handler's.</td></tr>
+          <tr><td><code>SignedOutCallbackPath</code></td><td><code>/signout-callback-oidc</code></td><td>Front-channel logout URL. Optional.</td></tr>
+          <tr><td><code>Scopes</code></td><td><code>["DevConduit.Forward"]</code></td><td>Delegated scope names accepted on bearer tokens at <code>/route</code>. An empty array falls back to <code>DevConduit.Forward</code>. The first is written into every <code>.conduit</code> as <code>scope</code>, so clients request the scope the registration exposes; the Server page edits it.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="operations">
+      <h2>03.4 &nbsp; Operational notes</h2>
+
+      <h3>Build, test, publish</h3>
+
+      <p>
+        Three PowerShell 7 scripts at the repository root, each with the same three modes: quiet
+        by default, <code>-Detailed</code> for full diagnostic output, <code>-Target</code> to
+        narrow to one project or one set of tests.
+      </p>
+
+<pre><code>.\build.ps1                          # quiet build of the solution, pass/fail summary + errors
+.\build.ps1 -Detailed                # full MSBuild output, only after something is wrong
+.\build.ps1 -Target Dev.Conduit     # one project, output filtered to it
+.\build.ps1 -Configuration Release   # also the zip, and the self-contained MSI with its .sha256
+.\build.ps1 -Configuration Release -Version 1.2.0 -Sign signtool   # signed exe, custom actions and MSI
+
+.\test.ps1                           # headless run, summary and failing test names
+.\test.ps1 -Detailed                 # full runner output
+.\test.ps1 -Target RouteCookiePolicyTests -Detailed
+.\test.ps1 -Trx                      # also TRX results under TestResults, for CI
+
+.\deploy.ps1                         # framework-dependent publish to .\publish
+.\deploy.ps1 -OutputPath D:\tools\devconduit -Configuration Release</code></pre>
+
+      <p>
+        <code>test.ps1</code> runs the Microsoft.Testing.Platform executable directly with
+        <code>--no-ansi --progress off</code>: headless by construction, no watch mode, no UI, and
+        a non-zero exit on failure. <code>deploy.ps1</code> is a framework-dependent publish — a
+        console application with no IIS site and no remote copy step, which can optionally
+        register itself as a Windows service — so the ASP.NET Core Runtime 10 and, for the tray's
+        Windows Forms, the .NET Desktop Runtime 10 must both be present on the machine that runs
+        it. The project targets <code>net10.0-windows</code> with
+        <code>UseWindowsForms</code> but keeps the console subsystem
+        (<code>DisableWinExeOutputInference</code>), so the console and service runs keep their
+        console.
+      </p>
+
+<pre><code>dotnet run --project src\Proxylayer.DevConduit                  # server mode, the default
+dotnet run --project src\Proxylayer.DevConduit -- --mode local  # local mode
+.\publish\Dev.Conduit.exe --mode local</code></pre>
+
+      <p>
+        Startup prints a banner naming the mode, the bind address, whether the Entra token is
+        validated or acquired, whether routed capture is on, and — in local mode — each remote
+        with its endpoint and identity source, the default remote, each route as
+        <code>name -&gt; target via remote</code>, the forward-proxy port, the effective target
+        rules per remote and the token cache directory.
+        If that banner names the wrong mode, nothing else about the configuration matters yet.
+      </p>
+
+      <h3>Running as a Windows service</h3>
+
+      <p>
+        On the server the same exe runs as the Windows service <code>Dev.Conduit</code>
+        through Topshelf, which handles only the lifecycle: <code>install</code>,
+        <code>uninstall</code>, <code>start</code>, <code>stop</code>, <code>help</code>, and
+        running under the service control manager. <code>ServiceLaunch</code> sends a launch to
+        Topshelf when its first argument is one of those verbs, or when the process's parent is
+        <code>services.exe</code> in session 0, the same parent-process test Topshelf applies.
+        Any other command line runs in the console exactly as before.
+      </p>
+
+<pre><code>.\Dev.Conduit.exe install                    # elevated; LocalSystem, delayed automatic start
+.\Dev.Conduit.exe start</code></pre>
+
+      <ul>
+        <li>
+          The service builds the application with no command-line arguments. The service control
+          manager starts the exe with Topshelf's <code>-displayname</code> and
+          <code>-servicename</code>, which the configuration command-line provider would reject,
+          so a service reads only the appsettings files and the environment.
+        </li>
+        <li>
+          The content root is the exe's folder whenever running as a service (its working
+          directory is <code>C:\Windows\System32</code>) and whenever that folder is a published
+          layout with a <code>wwwroot</code>, so the published exe finds its settings however it
+          is launched. A build output folder has no <code>wwwroot</code>, so <code>dotnet run</code>
+          keeps the project directory.
+        </li>
+        <li>
+          <code>-environment:&lt;name&gt;</code> is an optional custom install argument: after
+          install it writes <code>DOTNET_ENVIRONMENT=&lt;name&gt;</code> into the service's
+          <code>Environment</code> value under
+          <code>HKLM\SYSTEM\CurrentControlSet\Services\Dev.Conduit</code>, because a service sees
+          machine environment variables only as they were at boot. Nothing needs it: without it
+          the service runs as Production.
+        </li>
+        <li>
+          The data root defaults to <code>%ProgramData%\Proxylayer\Dev.Conduit</code> in server mode when
+          running as the service or while the service is installed (<code>DataRootDefault</code>,
+          applied by <code>DevConduitApplication</code> and by <code>CommandConfiguration</code> for
+          <code>export</code> and <code>certs</code>), so a console export finds the service's
+          certificates; elsewhere it stays <code>%LOCALAPPDATA%\Proxylayer\Dev.Conduit</code>. The default is
+          added as an in-memory source only when no layer names <code>DevConduit:DataRoot</code>.
+        </li>
+        <li>
+          Local mode is refused as a service: its interactive sign-in cannot be shown in
+          session 0, so the build fails with the usual fatal exit code.
+        </li>
+        <li>
+          A service logs to the console provider and to the Application event log under source
+          <code>Dev.Conduit</code>, this application's categories from Information. A failure
+          before the host exists is written to the event log directly. Recovery restarts the
+          service a minute after a failure and resets the count daily.
+        </li>
+      </ul>
+
+      <h3>Packaging: the MSI</h3>
+
+      <p>
+        <code>build.ps1 -Configuration Release</code> also publishes the app self-contained for
+        <code>win-x64</code> and builds <code>installer\Proxylayer.DevConduit.Installer.wixproj</code>, a
+        WiX v5 package (pinned to 5.0.x; v6 is not used for licensing reasons), into
+        <code>artifacts\Dev.Conduit-&lt;version&gt;.msi</code> and a zip with
+        <code>INSTALL.txt</code>. The version is <code>&lt;Version&gt;</code> in the app's project
+        file; the MSI's product version is bound to the exe's file version, so the two cannot
+        drift. The framework-dependent zip is still built beside it.
+      </p>
+
+      <ul>
+        <li>
+          One per-machine package, two roles chosen by <code>ROLE</code>. <em>Workstation</em>
+          adds an <code>HKLM</code> Run value that starts the tray for every user; the tray shows
+          that entry as on and read-only and drops its own <code>HKCU</code> value when both start
+          the same exe, since the second launch would open the first's setup window.
+          <em>Server</em> installs the service through the MSI service tables rather than
+          Topshelf's <code>install</code>: started by the service control manager with no
+          arguments, the exe still finds <code>services.exe</code> as its parent and runs the
+          Topshelf host under the configured name, and <code>DOTNET_ENVIRONMENT</code> comes from
+          the same <code>Environment</code> value Topshelf's install would have written.
+          A Workstation install may also import a server's <code>.conduit</code>
+          (<code>CONDUITCONFIG</code>, below).
+        </li>
+        <li>
+          The service binary must be the key file of the component that installs the service, so
+          the exe is authored in two mutually exclusive role components. Recovery uses the WiX
+          util custom action, since the Windows Installer failure-actions table is documented not
+          to work as expected; the delayed start uses the native <code>MsiServiceConfig</code>
+          table.
+        </li>
+        <li>
+          <code>ROLE</code> and <code>ENVIRONMENT</code> are recorded under
+          <code>HKLM\SOFTWARE\Proxylayer\Dev.Conduit</code> and read back on upgrade unless the command line
+          gives them; neither has a Property-table default, because one could not be told apart
+          from a command-line value. <code>ENVIRONMENT</code>, for silent installs only and
+          defaulting to Production, is checked against the elevated helper's rule by a small .NET
+          Framework custom action, since MSI conditions cannot match a character class.
+        </li>
+        <li>
+          <code>CONDUITCONFIG</code> (secure, not recorded, so an upgrade imports only when it is
+          given again) names a <code>.conduit</code> (or legacy <code>.proxyconfig</code>) for a Workstation install: typed or picked
+          with Browse (a DTF custom action showing a file dialog) on the Role page, or given on the
+          command line. The immediate <code>ValidateConduitConfig</code> action, before the launch
+          conditions, requires the Workstation role, a full path on a local disk, a
+          <code>.conduit</code> or <code>.proxyconfig</code> name and an existing file, and a
+          launch condition shows its reason. After <code>InstallFiles</code> a deferred,
+          no-impersonate <code>WixQuietExec64</code> action, <code>ImportConduitConfig</code>, runs
+          <code>"[INSTALLFOLDER]Dev.Conduit.exe" import "[CONDUITCONFIG]" --machine</code> (passed as
+          its CustomActionData) as LocalSystem, under the condition
+          <code>ROLE = "Workstation" AND CONDUITCONFIG AND NOT REMOVE</code>. Its output goes to the
+          log; a refused file returns non-zero and rolls the install back. LocalSystem is why the
+          file must be local: it cannot read the user's shares or mapped drives.
+        </li>
+        <li>
+          The settings files and the data root live outside the install folder, so upgrade and
+          uninstall never touch them. The Server role creates
+          <code>%ProgramData%\Proxylayer\Dev.Conduit</code> with a protected access list and never removes
+          it.
+        </li>
+        <li>
+          The package has its own UpgradeCode. POC.DevProxy, the product's previous name, is
+          detected only: an <code>Upgrade</code> row for its UpgradeCode with
+          <code>OnlyDetect</code> sets <code>LEGACYPRODUCTFOUND</code>, and a launch condition stops
+          the install while it is set. Nothing is upgraded, removed or migrated.
+        </li>
+        <li>
+          While a product with the package's UpgradeCode is installed, in either role, installing
+          the service is the MSI's; removing it is the MSI's only in the Server role, the one that
+          installs it. <code>InstallerOwnership</code> detects the product with
+          <code>MsiEnumRelatedProducts</code> and reads the recorded role and environment (no
+          recorded role counts as Workstation, the MSI's default). The tray menu then offers no
+          Install service, and the elevated helper and the Topshelf <code>install</code> verb refuse
+          with <code>ManagedByInstaller</code>; in the Server role the menu's Uninstall service and
+          the <code>uninstall</code> verbs refuse the same way, while in the Workstation role a
+          service present came some other way and they remove it.
+        </li>
+        <li>
+          The package records <code>InstallFolder</code> beside <code>Role</code> and
+          <code>Environment</code>, and reads it back on upgrade into <code>INSTALLFOLDER</code>
+          (a <code>RegistrySearch</code> into <code>SAVED_INSTALLFOLDER</code>, then a
+          <code>SetProperty</code> when the command line gave no folder), so an upgrade installs where
+          the previous version did.
+        </li>
+      </ul>
+
+      <h3>Updates and the release pipeline</h3>
+
+      <p>
+        The MSI stays the delivery mechanism; the updater only finds, verifies and silently runs the
+        next one. Everything lives under <code>Updates/</code> (shared) and
+        <code>Tray/Updates/</code> (the tray's side), and runs only for a build the MSI installed
+        (<code>InstalledBuild</code>: installed, folder recorded, the running exe in it).
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 30%">Piece</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>GitHubReleaseFeed</code>, <code>GitHubReleaseParser</code></td><td>Anonymous <code>releases/latest</code> (or the release list, with prereleases) with a generic user agent, <code>If-None-Match</code> from the last ETag so an unchanged feed costs an uncounted 304, and no request until a rate limit's reset. A release counts when published, tagged <code>vX.Y.Z</code> and carrying <code>Dev.Conduit-X.Y.Z.msi</code> and its <code>.sha256</code>. Parsing and version comparison are pure.</td></tr>
+          <tr><td><code>UpdateDownloader</code>, <code>UpdatePackageVerifier</code></td><td>Downloads to a temporary name, then verifies: SHA-256 against the checksum asset; <code>SignaturePolicy</code> (a signed running exe requires a trusted signature from the same subject); <code>MsiPackageCheck</code> on the Property table read through <code>MsiOpenDatabase</code> read-only (UpgradeCode, ProductName, a newer ProductVersion). Only then is it moved to <code>Dev.Conduit-X.Y.Z.msi</code>; older packages are removed.</td></tr>
+          <tr><td><code>ServiceUpdateWorker</code></td><td>Server role, in the service only. Checks at start and every interval into the restricted <code>%ProgramData%</code> update folder, waits for the quiet hour (<code>InstallWindow</code>, pure, with the zone passed in), logs to the event log and starts <code>MsiexecCommand</code> detached. A history file lets the next start report the outcome and hold a failed version back for a day.</td></tr>
+          <tr><td><code>TrayUpdater</code>, <code>UpdateHandoff</code>, <code>UpdateRelauncher</code></td><td>Workstation role. Checks and downloads in the background; installs through <code>service-admin update &lt;transfer&gt; &lt;tray pid&gt;</code> (one UAC prompt), whose <code>UpdateAdminAction</code> copies the package into the restricted folder, repeats every check against the machine's own feed setting, waits for the tray to exit, starts msiexec and exits, since it is the exe being replaced. A hidden PowerShell relauncher waits for the helper and its msiexec, then restarts the tray. A declined prompt (error 1223) turns the version into a menu item and one balloon until the tray restarts.</td></tr>
+          <tr><td><code>pr.yml</code>, <code>release.yml</code></td><td>Pull requests: <code>build.ps1 -NoPackage</code>, <code>test.ps1 -Trx</code>. Tags <code>vX.Y.Z</code>: build and test, <code>build.ps1 -Configuration Release -Version X.Y.Z</code> signed by Trusted Signing or signtool only when those secrets exist, a CycloneDX SBOM, build provenance attestation for the MSI and exe, and a draft release that the updater cannot see until it is published.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>The tray app</h3>
+
+      <p>
+        <code>Dev.Conduit.exe tray</code> runs a Windows Forms <code>ApplicationContext</code>
+        on an STA thread of its own, after letting go of the console: a console of its own is
+        freed, and a terminal's is left by starting a detached copy. A named mutex per user and
+        session keeps one instance; a second launch sets a named event the first waits on, and
+        the first opens its setup window. Every three seconds the tray asks the service control
+        manager whether <code>Dev.Conduit</code> is installed and picks its role:
+      </p>
+
+      <ul>
+        <li>
+          <strong>Server role</strong> (<code>ServerRole</code>): polls the service's status and
+          starts, stops and restarts it through the elevated helper; exports a client
+          configuration (<code>ClientConfigExportFlow</code>, shared with the Server page); and
+          uninstalls a service the MSI does not own (<code>ServiceActions</code>). Exit never
+          touches the service.
+        </li>
+        <li>
+          <strong>Workstation role</strong> (<code>WorkstationRole</code>,
+          <code>LocalProxyHost</code>): builds local mode with
+          <code>TryBuild(["--mode", "local"], runningAsService: false, ...)</code> and drives
+          <code>StartAsync</code> / <code>StopAsync</code>, building afresh on every start so
+          saved settings apply. The token warmup runs inside <code>StartAsync</code>, which is the
+          <em>signing in</em> state; the interactive MSAL sign-in works because the tray runs in
+          the user's session. A refusal to start keeps the fatal problems for a notification
+          and the log. The log sink is a ring buffer of the last 2,000 lines
+          (<code>LogRingBuffer</code>), which the log window shows. The running application's
+          <code>ClientTrustStatusBoard</code> is read on every poll: when a server's status reports
+          <code>UpdateNeeded</code> (<code>RootStoreUpdateNeeded</code> or
+          <code>MachineIdentityRenewalDue</code>) the tray shows one notification and an
+          <em>Update Dev.Conduit certificates (needs admin)</em> item that runs
+          <code>service-admin trust</code> for each such server and then asks the sync to run again. Without the MSI the menu also offers Install service.
+          The tray starts local mode itself when it starts, and after a save or an import leaves it
+          stopped, when <code>LocalProxyAutoStart</code> finds the configuration ready (a remote,
+          no fatal problem, Entra ids to sign in with) and <em>Start proxy automatically</em>
+          (<code>DevConduit:Tray:AutoStart</code> in the user file, on by default) is ticked. A
+          failed start shows its status and one notification; it is not retried.
+        </li>
+      </ul>
+
+      <p>
+        The setup window shows one set of pages per role, built from a <code>SetupContext</code>
+        (role, settings files, helper, client folder, hosts file, the local proxy's sync results):
+        a workstation gets Servers, Routes, Local proxy and About; a server gets Server, Routes and
+        About. Nothing on any page concerns certificates, and a workstation never sees server
+        settings. The pages are thin Windows Forms controls over plain model classes in
+        <code>Tray/Setup</code>: <code>SettingsLayers</code>, <code>RoutingEditModel</code> (routes
+        only; a route naming no server goes to the only one), <code>LocalProxySettingsModel</code>,
+        <code>ServerSettingsModel</code> (host name, port, client address, Entra ids, scope, allowed
+        users, groups and targets, and the warnings <code>ServerExposureWarnings</code> gives when
+        they leave the server open), <code>ImportedServerList</code> with <code>ServerTrustReader</code> (the Servers
+        rows and their certificate status in words), <code>UserRoutesCleanup</code> and
+        <code>ClientConfigExportPlan</code>. The Routes page validates every edit with the real
+        <code>RoutingConfigurationParser.Parse</code> and <code>RouteAliasTable</code> against the
+        configuration the file would give once saved.
+      </p>
+
+      <p>
+        <strong>Saving one page never clears another.</strong> Each model's change set touches only
+        the keys its page owns. After any save every page reloads from <code>SettingsLayers</code>:
+        the page that saved takes the files as they are, and every other page calls its model's
+        <code>Reload</code>, which reads the files again but keeps each field (or route row) edited
+        since the model loaded: a changed row keeps its values, an added row stays, a deleted row
+        stays deleted unless a lower file defines it, and untouched rows follow the files. Each save
+        likewise rebases the page's model on the files as they are at that moment before computing
+        its change set, so a save never writes from a stale snapshot. Before this, the window
+        reloaded every page from the files after any save, which threw away what had been typed
+        into the other pages and not yet saved.
+      </p>
+
+      <p>
+        <strong>Elevation.</strong> The tray never runs elevated. An administrative action starts
+        the same exe with the <code>runas</code> verb as
+        <code>service-admin &lt;action&gt;</code>: <code>start</code>, <code>stop</code>,
+        <code>restart</code>, <code>install &lt;environment&gt;</code>, <code>uninstall</code>,
+        <code>save &lt;transfer file&gt; [&lt;environment&gt;]</code>, <code>export</code>,
+        <code>import</code>, <code>seed</code>, <code>trust &lt;hostname&gt;</code>,
+        <code>forget &lt;hostname&gt;</code>, <code>revoke &lt;serial&gt;</code> or
+        <code>untrust</code>. The helper's exit
+        code is its whole report (<code>ServiceAdminExitCode</code>), and a declined UAC prompt
+        (<code>ERROR_CANCELLED</code>) is a silent no-op. Its targets are fixed: the service
+        <code>Dev.Conduit</code>, and the machine settings file. For a save the unelevated side
+        writes a <code>SettingsChangeSet</code> to a new file named
+        <code>Dev.Conduit-settings-&lt;32 hex&gt;.json</code> in its temp folder; the helper
+        reads only a file so named, refuses a reparse point or anything over 256 KB, refuses a
+        change touching any key outside <code>ManagedSettingKeys.Machine</code> (exactly what the
+        Server and Routes pages write), applies it with the protected access list, and deletes the
+        transfer file. An import or removal is held to <code>ManagedSettingKeys.Imported</code>
+        instead, and a seed to <code>ManagedSettingKeys.Seed</code>. Install runs the exe's own Topshelf <code>install -environment:&lt;name&gt;</code>
+        in a child process (the tray passes Production); environment names are limited to letters,
+        digits, <code>.</code>, <code>-</code> and <code>_</code>. <code>trust</code> and
+        <code>forget</code> accept only a lower-case DNS host name.
+      </p>
+
+      <h3>The client credential in a published instance</h3>
+
+      <p>
+        On the VM, a published instance needs no secret at all. The managed identity credential in
+        <code>AzureAd:ClientCredentials</code> is committed configuration — it names the UAMI's
+        client id, which is not a secret — and works in any environment, provided the UAMI is
+        attached to the VM. Off the VM there is no managed identity, the assertion cannot be
+        obtained, and the client secret fallback is the only option.
+      </p>
+
+      <div class="callout warn">
+        <strong>For the secret fallback: user secrets do not load outside Development.</strong>
+        The .NET host adds the user secrets configuration source only when the environment name
+        is <code>Development</code>. A published instance started without
+        <code>DOTNET_ENVIRONMENT</code> / <code>ASPNETCORE_ENVIRONMENT</code> set to
+        <code>Development</code> therefore reads no secret at all, and sign-in fails with an
+        invalid-client error that says nothing about configuration. Supply the secret another
+        way: the environment variable <code>AzureAd__ClientSecret</code> (double underscore), or a
+        key vault / configuration provider added to the host. Do not solve it by putting the
+        secret into <code>appsettings.json</code>.
+      </div>
+
+      <p>
+        For development off the VM, the secret goes into user secrets:
+      </p>
+
+<pre><code>cd src\Proxylayer.DevConduit
+dotnet user-secrets set "AzureAd:ClientSecret" "&lt;the secret value&gt;"</code></pre>
+
+      <p>
+        Startup logs the credential in use as <code>Entra client credential: …</code>. When the
+        tenant and client ids are present but no credential is configured, it logs a warning
+        naming both options rather than failing silently.
+      </p>
+
+      <h3>Test coverage</h3>
+
+      <p>
+        One test project, <code>tests/Proxylayer.DevConduit.Tests</code>, on xUnit v3 under
+        Microsoft.Testing.Platform, producing <strong>380 test cases</strong> across 14 fixtures.
+        The suite is deliberately unit-level: it exercises the pure decision logic that the
+        contract depends on, and does not stand up a host.
+      </p>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 34%">Area</th><th style="width: 12%">Cases</th><th>What is asserted</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>UserStoragePathsTests</code></td><td>77</td><td>Path-segment safety: the character allow list, anchoring, traversal, reserved Windows device names with and without extensions</td></tr>
+          <tr><td><code>ForwardProxyRequestHeadTests</code></td><td>40</td><td>Request-line and header-block parsing, absolute form, <code>CONNECT</code>, chunked detection, close semantics</td></tr>
+          <tr><td><code>DevConduitTargetMatcherTests</code></td><td>33</td><td>Host rule forms, wildcards, ports, IPv6 normalisation, the loop guard on the remote endpoint and own listeners</td></tr>
+          <tr><td><code>RouteOriginTests</code></td><td>32</td><td>Origin validation: scheme, path, query, fragment and embedded-credential rejection</td></tr>
+          <tr><td><code>RouteHeaderPolicyTests</code> &middot; <code>RouteForwarderHeaderTests</code> &middot; <code>RouteCookiePolicyTests</code></td><td>63</td><td>The header transformation table in <a href="#header-table">02.1</a>: hop-by-hop removal, <code>Connection</code>-named tokens, control headers, the Authorization rename, cookie filtering</td></tr>
+          <tr><td><code>RouteTargetResolverTests</code> &middot; <code>RouteAliasTableTests</code></td><td>37</td><td>Alias-then-header resolution order, segment consumption, <code>AliasesOnly</code>, alias validation and rejection reasons</td></tr>
+          <tr><td><code>SecretHeaderPolicyTests</code></td><td>29</td><td>Which headers redact, and that redaction produces a copy rather than mutating</td></tr>
+          <tr><td><code>JsonUserStoreTests</code></td><td>18</td><td>Append, prune, delete, clear, header-set CRUD, body capping, UTF-8-safe truncation</td></tr>
+          <tr><td><code>ForwardProxyHeadReaderTests</code></td><td>17</td><td>Head size caps, split reads, leftover-body handling, early close</td></tr>
+          <tr><td><code>HttpFailureClassifierTests</code> &middot; <code>ProxyExecutorFailureTests</code></td><td>34</td><td>Mapping transport exceptions to <code>ProxyErrorKind</code>, and the console's failure envelope</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4>What is not covered</h4>
+
+      <ul>
+        <li><strong>No end-to-end host tests.</strong> Nothing starts Kestrel, drives a real <code>/route</code> call, or asserts the middleware ordering that <a href="#topology">01.1</a> depends on. The ordering decisions are enforced only by the comments in <code>DevConduitApplication</code>.</li>
+        <li><strong>No authentication or authorization tests.</strong> <code>RouteAuthorizer</code>, <code>BearerScopeGuard</code>, <code>DevConduitAuthorization</code> and the OIDC post-configuration — including the <code>response_mode=query</code> decision this document calls load-bearing — have no coverage.</li>
+        <li><strong>No MSAL or token-lifecycle tests.</strong> Acquisition order, the refresh skew, the acquisition semaphore and the cache-failure fallback are unverified.</li>
+        <li><strong>No streaming or capture tests.</strong> <code>CappedBuffer</code>, <code>CapturingReadStream</code> and <code>RoutedTrafficRecorder</code> — including the queue-saturation drop behaviour — are exercised only indirectly.</li>
+        <li><strong>No forward-proxy socket tests.</strong> Head parsing and target matching are covered; the tunnel, the keep-alive decision, the timeouts and the shutdown path are not.</li>
+        <li><strong>No browser-side tests.</strong> <code>wwwroot/app.js</code> has no test coverage of any kind.</li>
+      </ul>
+
+      <h3>Troubleshooting index</h3>
+
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width: 42%">Symptom</th><th>First check</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Every page returns <code>503</code> with configuration text</td><td><code>AzureAd:TenantId</code> or <code>ClientId</code> is still a placeholder.</td></tr>
+          <tr><td>Sign-in loops back to the login page</td><td>The Web redirect URI must be exactly <code>http://localhost:8091/signin-oidc</code>. If the flow is reaching Entra and returning nothing useful, confirm <code>response_mode</code> is still <code>query</code> — see <a href="#authentication">02.3</a>.</td></tr>
+          <tr><td>Invalid client error at sign-in</td><td>Read the <code>Entra client credential: …</code> startup line. With the managed identity credential, confirm the process runs on the VM, the UAMI is attached, and <code>ManagedIdentityClientId</code> is its client id. With the secret fallback, the secret is missing or stale; in a published instance, see the user-secrets caution above.</td></tr>
+          <tr><td><code>AADSTS70021</code> at sign-in</td><td>The federated credential's subject does not match the managed identity, usually because the UAMI was recreated. Re-run <code>register-app.ps1</code>.</td></tr>
+          <tr><td><code>AADSTS700016</code>, application not found in the directory</td><td>Admin consent was never granted in the users' tenant. Have an admin open the consent link — see <a href="#credential">02.3</a>.</td></tr>
+          <tr><td><code>AADSTS65001</code>, consent missing</td><td>Admin consent in the users' tenant is missing. Have an admin open the consent link.</td></tr>
+          <tr><td>A request shows <code>BLOCKED</code>, or <code>/route</code> answers <code>400 Blocked</code></td><td>The destination resolves into <code>DevConduit:BlockedEgressNetworks</code>. See <a href="#security">03.2</a>.</td></tr>
+          <tr><td><code>403</code> after a successful sign-in</td><td><code>AllowedGroupIds</code> or <code>AllowedUserOids</code> excludes the account. Group ids also need the groups claim enabled.</td></tr>
+          <tr><td>A replayed history entry fails with <code>401</code></td><td>Secret values are stored redacted. Re-enter them, or apply a saved header set.</td></tr>
+          <tr><td>The service is on the wrong address or port</td><td><code>Kestrel:Endpoints</code>, or <code>urls</code> / <code>ASPNETCORE_URLS</code>. With none set it is <code>http://localhost:8091</code>. See <a href="#configuration">03.3</a>.</td></tr>
+          <tr><td><code>401 remote_unauthorized</code> in local mode</td><td>The token this machine holds is not one the named remote accepts. Confirm both ends name the same app registration, then delete the token cache.</td></tr>
+          <tr><td><code>400 no_remote</code> in local mode</td><td>Several remotes, no <code>DevConduit:DefaultRemote</code>, and the target matches no route and no remote's <code>Targets</code>. Set a default or add a rule.</td></tr>
+          <tr><td><code>403 remote_forbidden</code> in local mode</td><td>The scope is missing from the token, or the account is not on the remote's allow list.</td></tr>
+          <tr><td><code>502</code> refusing a <code>CONNECT</code></td><td>The host matches a target rule and the request is HTTPS. Use the reverse-proxy form — see <a href="#security">03.2</a>.</td></tr>
+          <tr><td><code>501</code> on a request with a body</td><td>A chunked body through the forward proxy. Send <code>Content-Length</code>, or use <code>/route</code>.</td></tr>
+          <tr><td>A request went straight out, unrouted</td><td>No rule matched. Rules match on host and port, never on path.</td></tr>
+          <tr><td>An upstream needing a cookie stopped working</td><td>Cookies are not forwarded by default. Set <code>DevConduit:Route:ForwardCookies</code>, or move the credential to <code>X-DevConduit-Upstream-Authorization</code>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+  </main>
+
+  <aside class="right-rail">
+    <div class="rail-inner">
+      <div class="nav-title">Contents</div>
+      <nav class="heading-nav" id="heading-nav">
+        <a href="#purpose">What it is</a>
+        <a href="#topology">Topology</a>
+        <a href="#console">Console request lifecycle</a>
+        <a href="#route">The forwarding contract</a>
+        <a class="sub" href="#header-table">Header transformation</a>
+        <a href="#local-mode">Local mode</a>
+        <a href="#authentication">Authentication</a>
+        <a class="sub" href="#credential">Tenants and credential</a>
+        <a href="#storage">Storage model</a>
+        <a href="#security">Security posture</a>
+        <a href="#configuration">Configuration reference</a>
+        <a href="#operations">Operational notes</a>
+      </nav>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Collapsible page groups, remembered between visits. ----------------
+  var STORE_KEY = "devconduit-arch-nav";
+  var groups = Array.prototype.slice.call(document.querySelectorAll(".nav-group"));
+
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}") || {}; } catch (e) { saved = {}; }
+
+  groups.forEach(function (group, index) {
+    var key = "g" + index;
+    if (Object.prototype.hasOwnProperty.call(saved, key)) {
+      group.open = !!saved[key];
+    }
+    group.addEventListener("toggle", function () {
+      saved[key] = group.open;
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(saved)); } catch (e) { /* private mode */ }
+    });
+  });
+
+  // ---- Current-heading highlighting in both rails. ------------------------
+  var links = Array.prototype.slice.call(
+    document.querySelectorAll(".page-nav a[href^='#'], .heading-nav a[href^='#']")
+  );
+  if (!links.length) { return; }
+
+  var byTarget = {};
+  var targets = [];
+
+  links.forEach(function (link) {
+    var id = link.getAttribute("href").slice(1);
+    var element = document.getElementById(id);
+    if (!element) { return; }
+    if (!byTarget[id]) { byTarget[id] = []; targets.push(element); }
+    byTarget[id].push(link);
+  });
+  if (!targets.length) { return; }
+
+  function top(element) {
+    return element.getBoundingClientRect().top + window.scrollY;
+  }
+
+  // The rails list their entries in different orders, and the right rail
+  // carries a sub-heading nested inside a section the left rail also lists.
+  // Scroll position only means anything against document order.
+  targets.sort(function (a, b) { return top(a) - top(b); });
+
+  var openedOnce = false;
+
+  function setActive(element) {
+    links.forEach(function (link) { link.classList.remove("active"); });
+
+    // The nearest heading, plus the section containing it, so the left rail
+    // stays on the section while the right rail tracks the sub-heading.
+    var ids = [element.id];
+    var section = element.closest("section[id]");
+    if (section && section.id !== element.id) { ids.push(section.id); }
+
+    ids.forEach(function (id) {
+      (byTarget[id] || []).forEach(function (link) {
+        link.classList.add("active");
+        // The current group opens itself, but only on first paint: after that
+        // a deliberate collapse by the reader is theirs to keep.
+        if (!openedOnce) {
+          var details = link.closest("details.nav-group");
+          if (details && !details.open) { details.open = true; }
+        }
+      });
+    });
+  }
+
+  function current() {
+    var line = window.scrollY + 120;
+    var active = targets[0];
+    for (var i = 0; i < targets.length; i++) {
+      if (top(targets[i]) <= line) { active = targets[i]; }
+    }
+    // At the very bottom the last section is the one being read.
+    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 2) {
+      active = targets[targets.length - 1];
+    }
+    return active;
+  }
+
+  var queued = false;
+  function update() {
+    queued = false;
+    var active = current();
+    if (active) { setActive(active); }
+    openedOnce = true;
+  }
+
+  window.addEventListener("scroll", function () {
+    if (queued) { return; }
+    queued = true;
+    window.requestAnimationFrame(update);
+  }, { passive: true });
+
+  window.addEventListener("resize", update);
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Dev.Conduit</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13' fill='%235bc9ff'%3E%E2%87%84%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <h1 class="app-title">POC<span class="app-title-dim">.DevConduit</span></h1>
+    <span class="kicker">LOCAL REQUEST CONSOLE</span>
+    <div class="spacer"></div>
+    <span id="signedInAs" class="signed-in"></span>
+    <a class="link-button" href="/MicrosoftIdentity/Account/SignOut">Sign out</a>
+</header>
+
+<main class="layout">
+    <aside class="sidebar">
+        <div class="pane-head">
+            <nav class="tabs rail-tabs" role="tablist" data-tabs="rail">
+                <button id="railConsoleTab" type="button" class="tab active" data-rail="console" role="tab" aria-selected="true">Console</button>
+                <button id="railRoutedTab" type="button" class="tab" data-rail="routed" role="tab" aria-selected="false">Routed <span id="routedTotalBadge" class="badge-count"></span></button>
+            </nav>
+            <div class="spacer"></div>
+            <button id="clearHistoryButton" type="button" class="ghost danger" title="Delete all console history">Clear</button>
+            <button id="clearRoutedButton" type="button" class="ghost danger hidden" title="Delete all captured routed traffic">Purge</button>
+        </div>
+        <div class="sidebar-head">
+            <input id="historySearch" type="search" placeholder="Search console history" autocomplete="off" spellcheck="false" />
+            <input id="routedSearch" type="search" class="hidden" placeholder="Search routed traffic" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div id="consoleRail" class="rail-view">
+            <ul id="historyList" class="history-list"></ul>
+            <div id="historyEmpty" class="empty-note">No requests yet.</div>
+        </div>
+
+        <div id="routedRail" class="rail-view hidden">
+            <div id="routedError" class="callout bad hidden"></div>
+            <ul id="routedList" class="history-list"></ul>
+            <div id="routedEmpty" class="empty-note hidden">
+                <p class="empty-title">No routed traffic captured.</p>
+                <p>Traffic appears here once an application forwards calls through <span class="mono">/route</span>. Capture is off by default in local mode, so this list stays empty until it is switched on.</p>
+            </div>
+            <div id="routedPager" class="rail-pager hidden">
+                <button id="routedPrevButton" type="button" class="ghost">Prev</button>
+                <span id="routedRange" class="rail-range"></span>
+                <button id="routedNextButton" type="button" class="ghost">Next</button>
+            </div>
+        </div>
+
+        <section class="storage-panel">
+            <div class="pane-head">
+                <span class="kicker">STORAGE</span>
+                <span id="storageTotal" class="storage-total"></span>
+                <div class="spacer"></div>
+                <button id="storageRefreshButton" type="button" class="ghost">Refresh</button>
+            </div>
+            <div class="storage-body">
+                <div class="storage-grid-head">
+                    <span>STORE</span><span>ENTRIES</span><span>SIZE</span><span></span>
+                </div>
+                <div id="storageRows" class="storage-rows"></div>
+                <div id="storageRoot" class="storage-root"></div>
+                <div id="storageError" class="callout bad hidden"></div>
+            </div>
+        </section>
+    </aside>
+
+    <section class="workspace">
+        <form id="composerForm" class="composer" autocomplete="off">
+            <select id="methodSelect" class="method-select" aria-label="HTTP method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>DELETE</option>
+                <option>HEAD</option>
+                <option>OPTIONS</option>
+                <option value="__custom">Custom…</option>
+            </select>
+            <input id="customMethod" class="custom-method hidden" type="text" placeholder="VERB" aria-label="Custom HTTP method" spellcheck="false" />
+            <input id="urlInput" class="url-input" type="text" placeholder="https://example.com/api/resource" spellcheck="false" aria-label="URL" />
+            <button id="sendButton" type="submit" class="primary">Send</button>
+        </form>
+
+        <div class="panes">
+            <section class="pane request-pane">
+                <div class="pane-head">
+                    <span class="kicker">REQUEST</span>
+                    <nav class="tabs" role="tablist" data-tabs="request">
+                        <button type="button" class="tab active" data-tab="headers" role="tab">Headers <span id="headerCount" class="badge-count"></span></button>
+                        <button type="button" class="tab" data-tab="body" role="tab">Body</button>
+                        <button type="button" class="tab" data-tab="options" role="tab">Options</button>
+                    </nav>
+                </div>
+
+                <div class="tab-panel active" data-panel="headers">
+                    <div class="header-set-bar">
+                        <select id="headerSetSelect" aria-label="Saved header sets">
+                            <option value="">Apply saved set…</option>
+                        </select>
+                        <button id="saveHeaderSetButton" type="button" class="ghost">Save as set…</button>
+                        <button id="manageHeaderSetsButton" type="button" class="ghost">Manage</button>
+                    </div>
+                    <div id="headerSetManager" class="header-set-manager hidden"></div>
+                    <div class="header-grid-head">
+                        <span></span><span>Name</span><span>Value</span><span></span><span></span><span></span>
+                    </div>
+                    <div id="headerRows" class="header-rows"></div>
+                </div>
+
+                <div class="tab-panel" data-panel="body">
+                    <div class="body-bar">
+                        <input id="contentTypeInput" type="text" placeholder="Content-Type (e.g. application/json)" spellcheck="false" />
+                        <button id="formatJsonButton" type="button" class="ghost">Format JSON</button>
+                    </div>
+                    <textarea id="bodyInput" spellcheck="false" placeholder="Request body"></textarea>
+                </div>
+
+                <div class="tab-panel" data-panel="options">
+                    <div class="options-grid">
+                        <label for="timeoutInput">Timeout (seconds)</label>
+                        <input id="timeoutInput" type="number" min="1" max="600" value="100" />
+
+                        <label for="followRedirects">Follow redirects</label>
+                        <input id="followRedirects" type="checkbox" />
+
+                        <label for="allowInvalidCerts">Allow invalid TLS certificate</label>
+                        <input id="allowInvalidCerts" type="checkbox" />
+                    </div>
+                    <p class="hint">Redirects are surfaced as 3xx responses unless following is enabled. Disabling certificate validation is logged by the server.</p>
+                </div>
+            </section>
+
+            <section class="pane response-pane">
+                <div class="response-summary">
+                    <span class="kicker">RESPONSE</span>
+                    <span id="responseStatus" class="chip chip-idle">Ready</span>
+                    <span id="responseMeta" class="response-meta"></span>
+                    <div class="spacer"></div>
+                    <button id="copyBodyButton" type="button" class="ghost">Copy body</button>
+                </div>
+                <div id="routedBar" class="routed-bar hidden">
+                    <span class="kicker">ROUTED ENTRY · READ ONLY</span>
+                    <span id="routedBarMeta" class="response-meta"></span>
+                    <div class="spacer"></div>
+                    <button id="copyToComposerButton" type="button" class="ghost">Copy to composer</button>
+                </div>
+                <div id="responseError" class="callout bad hidden"></div>
+                <div class="pane-head">
+                    <nav class="tabs" role="tablist" data-tabs="response">
+                        <button type="button" class="tab active" data-tab="responseBody" role="tab">Body</button>
+                        <button type="button" class="tab" data-tab="responseHeaders" role="tab">Headers <span id="responseHeaderCount" class="badge-count"></span></button>
+                        <button id="routedRequestBodyTab" type="button" class="tab hidden" data-tab="routedRequestBody" role="tab">Req body</button>
+                        <button id="routedRequestHeadersTab" type="button" class="tab hidden" data-tab="routedRequestHeaders" role="tab">Req headers <span id="routedRequestHeaderCount" class="badge-count"></span></button>
+                    </nav>
+                </div>
+                <div class="tab-panel active" data-panel="responseBody">
+                    <div class="body-bar">
+                        <label class="inline-toggle"><input id="prettyToggle" type="checkbox" checked /> Pretty</label>
+                        <span id="bodyNotice" class="hint"></span>
+                    </div>
+                    <pre id="responseBody" class="response-body"></pre>
+                </div>
+                <div class="tab-panel flush" data-panel="responseHeaders">
+                    <table class="header-table">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody id="responseHeaders"></tbody>
+                    </table>
+                </div>
+                <div class="tab-panel" data-panel="routedRequestBody">
+                    <div class="body-bar">
+                        <span class="kicker">CAPTURED REQUEST BODY</span>
+                        <span id="routedRequestBodyNotice" class="hint"></span>
+                    </div>
+                    <pre id="routedRequestBody" class="response-body"></pre>
+                </div>
+                <div class="tab-panel flush" data-panel="routedRequestHeaders">
+                    <table class="header-table">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody id="routedRequestHeaders"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </section>
+</main>
+
+<div id="confirmBackdrop" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="pane-head">
+            <span id="confirmTitle" class="kicker">CONFIRM DELETION</span>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage" class="modal-message"></p>
+            <div id="confirmDetail" class="callout warn"></div>
+        </div>
+        <div class="modal-actions">
+            <button id="confirmCancel" type="button" class="ghost">Cancel</button>
+            <button id="confirmAccept" type="button" class="ghost danger">Delete</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

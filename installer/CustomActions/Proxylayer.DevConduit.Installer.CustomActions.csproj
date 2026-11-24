@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The installer's custom actions: checking the ENVIRONMENT property, which MSI condition
+       syntax cannot match against a character class or a length; checking and browsing for the
+       CONDUITCONFIG file a Workstation install imports. They run in the Windows Installer custom
+       action host, so they target the .NET Framework that ships with Windows. -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <!-- x64 to match the package, so the DTF packager wraps it in the 64-bit custom action host. -->
+    <Platform>x64</Platform>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Proxylayer.DevConduit.Installer.CustomActions</RootNamespace>
+    <AssemblyName>Proxylayer.DevConduit.Installer.CustomActions</AssemblyName>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WiX v5, pinned to match the installer project; see the note there. -->
+    <PackageReference Include="WixToolset.Dtf.CustomAction" Version="5.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Browse button's file dialog. Part of the .NET Framework on every Windows. -->
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="CustomAction.config" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

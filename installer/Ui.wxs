@@ -1,0 +1,142 @@
+<!--
+  The install UI: WixUI_InstallDir without the license page and with a role page.
+
+    Welcome -> Role -> Install folder -> Ready -> (progress) -> Finish
+
+  The role page also takes the optional .conduit file a Workstation install imports (CONDUITCONFIG),
+  typed or chosen with Browse. Maintenance (repair, remove) is the standard WixUI sequence. The
+  finish page offers to start the tray after a Workstation install.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Fragment>
+    <!-- The role page's radio buttons work on ROLE_CHOICE, which needs a default in the Property
+         table; ROLE itself has none (see Package.wxs), so the page copies it in and out. -->
+    <Property Id="ROLE_CHOICE" Value="Workstation" />
+    <SetProperty Id="ROLE_CHOICE" Action="SetRoleChoice" Value="[ROLE]" After="ValidateEnvironment" Sequence="ui" Condition="ROLE" />
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <!-- Start the tray from the finish page. The finish button runs in the installer's UI
+         process, as the user who started the install, not in the elevated service that installed
+         the files, so the tray starts unelevated in the user's session (unless the install itself
+         was started from an elevated prompt). WixShellExec takes no arguments, so it opens the
+         Start menu shortcut, which holds them. -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <SetProperty Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Action="SetLaunchText" Value="Launch Dev.Conduit" After="SetRoleChoice" Sequence="ui"
+                 Condition="ROLE = &quot;Workstation&quot; AND NOT Installed" />
+    <CustomAction Id="LaunchTray" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
+
+    <!-- The role page's Browse button: a file dialog over the installer window. -->
+    <CustomAction Id="BrowseConduitConfig" BinaryRef="DevConduitInstallerActions" DllEntry="BrowseConduitConfig" Execute="immediate" Return="ignore" />
+
+    <UI Id="DevConduitUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+
+      <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_X64" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+
+      <Publish Dialog="ExitDialog" Control="Finish" Property="WixShellExecTarget" Value="[ProgramMenuFolder]Dev.Conduit.lnk" Order="1" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchTray" Order="2"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND ROLE = &quot;Workstation&quot;" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="RoleDlg" Condition="NOT Installed" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
+
+      <Publish Dialog="RoleDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+      <!-- A Server install imports nothing, so a path typed before choosing Server is dropped. -->
+      <Publish Dialog="RoleDlg" Control="Next" Property="ROLE" Value="[ROLE_CHOICE]" Order="1" />
+      <Publish Dialog="RoleDlg" Control="Next" Property="CONDUITCONFIG" Value="{}" Order="2" Condition="ROLE_CHOICE = &quot;Server&quot;" />
+      <Publish Dialog="RoleDlg" Control="Next" Event="DoAction" Value="ValidateConduitConfig" Order="3" />
+      <Publish Dialog="RoleDlg" Control="Next" Event="SpawnDialog" Value="InvalidConduitConfigDlg" Order="4"
+               Condition="CONDUITCONFIG AND CONDUITCONFIG_ACCEPTED &lt;&gt; &quot;1&quot;" />
+      <Publish Dialog="RoleDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="5"
+               Condition="NOT CONDUITCONFIG OR CONDUITCONFIG_ACCEPTED = &quot;1&quot;" />
+      <!-- Setting the property to itself makes the edit box show what the dialog chose. -->
+      <Publish Dialog="RoleDlg" Control="BrowseConduitConfig" Event="DoAction" Value="BrowseConduitConfig" Order="1" />
+      <Publish Dialog="RoleDlg" Control="BrowseConduitConfig" Property="CONDUITCONFIG" Value="[CONDUITCONFIG]" Order="2" />
+
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="RoleDlg" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_X64" Order="2" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4" Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1" Condition="NOT Installed" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="Installed AND PATCH" />
+
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
+
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+
+      <Dialog Id="RoleDlg" Width="370" Height="270" Title="!(loc.InstallDirDlg_Title)">
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="Choose how Dev.Conduit runs on this computer." />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Role" />
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.InstallDirDlgBannerBitmap)" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+        <Control Id="RoleButtons" Type="RadioButtonGroup" X="20" Y="52" Width="330" Height="80" Property="ROLE_CHOICE">
+          <RadioButtonGroup Property="ROLE_CHOICE">
+            <RadioButton Value="Workstation" X="0" Y="0" Width="330" Height="15" Text="&amp;Workstation" />
+            <RadioButton Value="Server" X="0" Y="48" Width="330" Height="15" Text="&amp;Server" />
+          </RadioButtonGroup>
+        </Control>
+        <Control Id="WorkstationText" Type="Text" X="38" Y="68" Width="312" Height="28" NoPrefix="yes"
+                 Text="The tray app, started at sign-in for every user. It hosts local mode, the relay to a Dev.Conduit server, for the signed-in developer." />
+        <Control Id="ServerText" Type="Text" X="38" Y="116" Width="312" Height="14" NoPrefix="yes"
+                 Text="The Dev.Conduit Windows service, running as LocalSystem and started automatically." />
+
+        <Control Id="ConduitConfigLabel" Type="Text" X="20" Y="140" Width="330" Height="12"
+                 Text="&amp;Import settings from a .conduit file (Workstation, optional):"
+                 EnableCondition="ROLE_CHOICE = &quot;Workstation&quot;" DisableCondition="ROLE_CHOICE &lt;&gt; &quot;Workstation&quot;" />
+        <Control Id="ConduitConfigEdit" Type="Edit" X="20" Y="154" Width="262" Height="18" Property="CONDUITCONFIG" Text="{260}"
+                 EnableCondition="ROLE_CHOICE = &quot;Workstation&quot;" DisableCondition="ROLE_CHOICE &lt;&gt; &quot;Workstation&quot;" />
+        <Control Id="BrowseConduitConfig" Type="PushButton" X="288" Y="154" Width="62" Height="17" Text="B&amp;rowse..."
+                 EnableCondition="ROLE_CHOICE = &quot;Workstation&quot;" DisableCondition="ROLE_CHOICE &lt;&gt; &quot;Workstation&quot;" />
+        <Control Id="ConduitConfigHelp" Type="Text" X="20" Y="177" Width="330" Height="50" NoPrefix="yes"
+                 Text="The file your Dev.Conduit server's administrator exported. The install adds that server: its hosts entry, its certificate and its routes. Leave this blank for a blank install, and import the file later from the tray. A .proxyconfig file from POC.DevProxy works too."
+                 EnableCondition="ROLE_CHOICE = &quot;Workstation&quot;" DisableCondition="ROLE_CHOICE &lt;&gt; &quot;Workstation&quot;" />
+      </Dialog>
+
+      <Dialog Id="InvalidConduitConfigDlg" Width="260" Height="110" Title="!(loc.InvalidDirDlg_Title)">
+        <Control Id="OK" Type="PushButton" X="102" Y="82" Width="56" Height="17" Default="yes" Cancel="yes" Text="!(loc.WixUIOK)">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Text" Type="Text" X="48" Y="15" Width="194" Height="60" NoPrefix="yes" Text="[CONDUITCONFIG_PROBLEM]" />
+        <Control Id="Icon" Type="Icon" X="15" Y="15" Width="24" Height="24" FixedSize="yes" IconSize="32" Text="!(loc.InvalidDirDlgIcon)" />
+      </Dialog>
+
+      <Property Id="ARPNOMODIFY" Value="1" />
+    </UI>
+
+    <UIRef Id="WixUI_Common" />
+  </Fragment>
+</Wix>

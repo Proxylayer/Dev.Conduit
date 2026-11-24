@@ -1,0 +1,44 @@
+## Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Pp]ublish/
+artifacts/
+*.binlog
+
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vscode/
+
+## User secrets and local overrides
+secrets.json
+appsettings.*.local.json
+*.pfx
+*.snk
+
+## Test and coverage output
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+*.coverage
+
+## OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
+
+## NuGet
+*.nupkg
+*.snupkg
+.packages/
+project.lock.json
+project.fragment.lock.json
+
+## Scribe backup copies (the skill rewrites these; the JSON alongside them is the source of truth)
+.claude/scribe/*.bak
